@@ -1,0 +1,5 @@
+package com.yowyob.loyaulty.program.application.wallet.command;
+
+import com.yowyob.loyaulty.program.domain.shared.model.TenantId;
+
+public record FreezeWalletCommand(TenantId tenantId, String memberId, String reason) {}

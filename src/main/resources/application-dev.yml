@@ -1,0 +1,47 @@
+spring:
+  r2dbc:
+    url: r2dbc:postgresql://localhost:5432/loyalty_db
+    username: loyalty_user
+    password: loyalty_pass
+
+  datasource:
+    url: jdbc:postgresql://localhost:5432/loyalty_db
+    username: loyalty_user
+    password: loyalty_pass
+
+  flyway:
+    url: jdbc:postgresql://localhost:5432/loyalty_db
+    user: loyalty_user
+    password: loyalty_pass
+
+  data:
+    redis:
+      host: localhost
+      port: 6379
+
+  kafka:
+    bootstrap-servers: localhost:9092
+
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          # En dev, si Keycloak n'est pas disponible, commenter ces lignes
+          # et utiliser le profil "dev-no-auth"
+          issuer-uri: http://localhost:8180/realms/yowyob
+
+app:
+  bonification:
+    base-url: http://localhost:8081
+    admin-username: admin
+    admin-password: admin
+
+  cors:
+    allowed-origins:
+      - http://localhost:3000
+
+logging:
+  level:
+    com.yowyob: DEBUG
+    org.springframework.r2dbc: DEBUG
+    io.r2dbc.postgresql: DEBUG
