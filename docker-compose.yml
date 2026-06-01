@@ -5,15 +5,15 @@ services:
     image: postgres:18-alpine
     container_name: loyalty-postgres
     environment:
-      POSTGRES_DB: loyalty_db
-      POSTGRES_USER: loyalty_user
-      POSTGRES_PASSWORD: loyalty_pass
+      POSTGRES_DB: ${DB_NAME:-loyalty_db}
+      POSTGRES_USER: ${DB_USER:-loyalty_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-loyalty_pass}
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U loyalty_user -d loyalty_db"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-loyalty_user} -d ${DB_NAME:-loyalty_db}"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -63,3 +63,28 @@ services:
 volumes:
   postgres_data:
   redis_data:
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:23.0
+    container_name: loyalty-keycloak
+    environment:
+      KC_DB: postgres
+      KC_DB_URL_HOST: postgres
+      KC_DB_URL_DATABASE: ${DB_NAME:-loyalty_db}
+      KC_DB_USERNAME: ${DB_USER:-loyalty_user}
+      KC_DB_PASSWORD: ${DB_PASSWORD:-loyalty_pass}
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+    command: start-dev --import-realm
+    ports:
+      - "8080:8080"
+    depends_on:
+      - postgres
+    volumes:
+      - ./keycloak-realm:/opt/keycloak/data/import
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/health/ready || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+

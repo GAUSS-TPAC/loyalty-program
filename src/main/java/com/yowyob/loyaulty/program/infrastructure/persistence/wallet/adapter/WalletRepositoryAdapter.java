@@ -31,7 +31,10 @@ public class WalletRepositoryAdapter implements WalletRepository {
         return r2dbcRepository.findByIdAndTenantId(walletId, tenantId)
                 .map(mapper::toDomain)
                 .doOnNext(w -> log.debug("Wallet trouvé : id={}, tenant={}", walletId, tenantId))
-                .doOnEmpty(() -> log.debug("Wallet introuvable : id={}, tenant={}", walletId, tenantId));
+                .switchIfEmpty(Mono.defer(() -> {
+                    log.debug("Wallet introuvable : id={}, tenant={}", walletId, tenantId);
+                    return Mono.empty();
+                }));
     }
 
     @Override
