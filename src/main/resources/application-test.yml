@@ -1,0 +1,36 @@
+spring:
+  profiles:
+    active: test, stub
+
+  # ── R2DBC (tests : H2 in-memory ou PostgreSQL via Testcontainers) ──────────
+  r2dbc:
+    url: r2dbc:h2:mem:///test_loyalty_db?options=DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    username: sa
+    password:
+
+  # ── Flyway (désactivé en tests pour favoriser les schémas Testcontainers) ──
+  flyway:
+    enabled: false
+
+  # ── Kafka (désactivé en tests unitaires) ────────────────────────────────────
+  kafka:
+    bootstrap-servers: localhost:9092
+
+  # ── Redis (désactivé en tests unitaires) ────────────────────────────────────
+  data:
+    redis:
+      host: localhost
+      port: 6379
+
+  # ── Sécurité (JWT désactivé en tests) ───────────────────────────────────────
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://localhost:8080/realms/loyalty-test
+
+# ── Logs courts en tests ─────────────────────────────────────────────────────
+logging:
+  level:
+    root: WARN
+    com.yowyob.loyaulty: DEBUG
