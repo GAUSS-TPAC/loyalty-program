@@ -1,0 +1,52 @@
+spring:
+  profiles:
+    active: dev, stub
+
+  application:
+    name: loyaulty-program
+
+  # ── R2DBC (développement local) ──────────────────────────────
+  r2dbc:
+    url: r2dbc:postgresql://localhost:5432/loyalty_dev
+    username: loyalty_user
+    password: loyalty_pass
+    pool:
+      initial-size: 2
+      max-size: 5
+
+  # ── Flyway ───────────────────────────────────────────────────
+  flyway:
+    url: jdbc:postgresql://localhost:5432/loyalty_dev
+    user: loyalty_user
+    password: loyalty_pass
+
+  # ── Redis ─────────────────────────────────────────────────────
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      password:
+
+  # ── Kafka ─────────────────────────────────────────────────────
+  kafka:
+    bootstrap-servers: localhost:9092
+
+  # ── Sécurité (désactivée en dev pour Swagger) ─────────────────
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://localhost:8080/realms/loyalty-dev
+
+# ── Serveur ───────────────────────────────────────────────────
+server:
+  port: 8081
+
+# ── Logs verbeux en dev ───────────────────────────────────────
+logging:
+  level:
+    root: DEBUG
+    com.yowyob.loyaulty: TRACE
+    org.springframework.r2dbc: DEBUG
+    io.r2dbc.postgresql: DEBUG
+    org.flywaydb: DEBUG

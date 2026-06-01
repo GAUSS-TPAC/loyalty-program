@@ -1,0 +1,134 @@
+spring:
+  application:
+    name: loyaulty-program
+
+  # ── Base de données R2DBC (réactif) ────────────────────────
+  r2dbc:
+    url: r2dbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:loyalty_db}
+    username: ${DB_USER:loyalty_user}
+    password: ${DB_PASSWORD:loyalty_pass}
+    pool:
+      enabled: true
+      initial-size: 5
+      max-size: 20
+      max-idle-time: 30m
+      validation-query: SELECT 1
+
+  # ── Flyway (migrations SQL via JDBC synchrone) ──────────────
+  flyway:
+    enabled: true
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:loyalty_db}
+    user: ${DB_USER:loyalty_user}
+    password: ${DB_PASSWORD:loyalty_pass}
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+    validate-on-migrate: true
+    out-of-order: false
+
+  # ── Redis (idempotence + cache solde) ───────────────────────
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: 2s
+      lettuce:
+        pool:
+          max-active: 16
+          max-idle: 8
+          min-idle: 2
+
+  # ── Kafka ────────────────────────────────────────────────────
+  kafka:
+    bootstrap-servers: ${KAFKA_BROKERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      acks: all                       # Durabilité maximale
+      retries: 3
+      properties:
+        enable.idempotence: true      # Producteur idempotent Kafka
+        max.in.flight.requests.per.connection: 1
+    consumer:
+      group-id: loyalty-wallet-group
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: com.yowyob.loyaulty.program.domain.wallet.event
+    topics:
+      wallet-credited: wallet.credited
+      wallet-debited: wallet.debited
+      wallet-frozen: wallet.frozen
+      wallet-unfrozen: wallet.unfrozen
+      wallet-closed: wallet.closed
+      wallet-fraud-suspected: wallet.fraud_suspected
+      payment-confirmed: payment.confirmed
+
+  # ── Sécurité OAuth2 Resource Server (JWT) ───────────────────
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${JWT_ISSUER_URI:http://localhost:8080/realms/loyalty}
+          jwk-set-uri: ${JWT_JWK_SET_URI:http://localhost:8080/realms/loyalty/protocol/openid-connect/certs}
+
+# ── Serveur WebFlux ──────────────────────────────────────────
+server:
+  port: ${SERVER_PORT:8081}
+  error:
+    include-message: never            # Pas de stacktrace en réponse (sécurité)
+    include-exception: false
+
+# ── Actuator & Prometheus ────────────────────────────────────
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+  endpoint:
+    health:
+      show-details: when-authorized
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+
+# ── SpringDoc / OpenAPI ──────────────────────────────────────
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operations-sorter: method
+  show-actuator: false
+
+# ── Logging ──────────────────────────────────────────────────
+logging:
+  level:
+    root: INFO
+    com.yowyob.loyaulty: DEBUG
+    org.springframework.r2dbc: INFO
+    org.flywaydb: INFO
+  pattern:
+    console: "%d{HH:mm:ss.SSS} [%thread] %-5level [%X{tenantId}] %logger{36} - %msg%n"
+
+# ── Configuration Kernel Core ────────────────────────────────
+app:
+  kernel-core:
+    base-url: ${KERNEL_CORE_URL:http://localhost:8090}
+    service-client-id: ${KERNEL_SERVICE_CLIENT_ID:loyalty-service}
+    service-client-secret: ${KERNEL_SERVICE_CLIENT_SECRET:changeme}
+    token-endpoint: ${KERNEL_TOKEN_ENDPOINT:}
+    connect-timeout-ms: 3000
+    read-timeout-ms: 5000
+
+  security:
+    jwt:
+      # Noms des claims YowAuth0 / Keycloak
+      tenant-id-claim: organization_id
+      org-name-claim: org_name
+      org-status-claim: org_status
+      org-plan-claim: org_plan
+      roles-claim: realm_access.roles
+      organization-id-claim: organization_id
