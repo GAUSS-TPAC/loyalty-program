@@ -1,13 +1,13 @@
-package com.yowyob.loyaulty.program;
+package com.yowyob.loyalty;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 
 @SpringBootTest
-class LoyaultyProgramApplicationTests {
+class LoyaltyApplicationTests {
 
-	@Test
-	void contextLoads() {
-	}
+    @Test
+    void contextLoads() {
+    }
 
 }

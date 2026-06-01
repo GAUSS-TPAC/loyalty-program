@@ -73,7 +73,10 @@ public class WalletCacheAdapter {
                 .get(key)
                 .map(BigDecimal::new)
                 .doOnNext(balance -> log.debug("Cache hit solde : walletId={}, balance={}", walletId, balance))
-                .doOnEmpty(() -> log.debug("Cache miss solde : walletId={}", walletId));
+                .switchIfEmpty(Mono.defer(() -> {
+                    log.debug("Cache miss solde : walletId={}", walletId);
+                    return Mono.empty();
+                }));
     }
 
     // ── Statut ───────────────────────────────────────────────────────────────
