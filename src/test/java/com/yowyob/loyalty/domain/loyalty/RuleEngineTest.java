@@ -4,7 +4,6 @@ import com.yowyob.loyalty.domain.loyalty.model.counter.Counter;
 import com.yowyob.loyalty.domain.loyalty.model.engine.EvaluationContext;
 import com.yowyob.loyalty.domain.loyalty.model.engine.RuleEvaluationResult;
 import com.yowyob.loyalty.domain.loyalty.model.event.IncomingEvent;
-import com.yowyob.loyalty.domain.loyalty.model.points.PointsAccount;
 import com.yowyob.loyalty.domain.loyalty.model.rule.*;
 import com.yowyob.loyalty.domain.loyalty.model.tier.MemberTier;
 import com.yowyob.loyalty.domain.loyalty.model.tier.TierLevel;
