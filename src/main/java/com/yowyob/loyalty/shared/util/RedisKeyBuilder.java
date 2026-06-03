@@ -27,8 +27,8 @@ public final class RedisKeyBuilder {
         return PREFIX + ":" + tenantId.value() + ":wallet:" + walletId;
     }
 
-    public static String walletBalanceKey(TenantId tenantId, UUID walletId) {
-        return PREFIX + ":" + tenantId.value() + ":wallet:" + walletId + ":balance";
+    public static String walletBalanceKey(TenantId tenantId, com.yowyob.loyalty.domain.shared.model.UserId memberId) {
+        return PREFIX + ":" + tenantId.value() + ":wallet:" + memberId.value() + ":balance";
     }
 
     public static String rateLimitKey(TenantId tenantId, String operation) {
