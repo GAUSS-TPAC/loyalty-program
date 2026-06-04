@@ -11,4 +11,6 @@ public interface RuleRepository {
     Rule save(Rule rule);
     Optional<Rule> findById(UUID id);
     List<Rule> findActiveRulesByTenantAndEvent(TenantId tenantId, String eventType);
+
+    List<Rule> findByTenant(TenantId tenantId);
 }

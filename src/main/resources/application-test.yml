@@ -1,12 +1,15 @@
 spring:
-  profiles:
-    active: test, stub
-
+  # Profils activés via @ActiveProfiles("test", "stub") dans les tests
   # ── R2DBC (tests : H2 in-memory ou PostgreSQL via Testcontainers) ──────────
   r2dbc:
-    url: r2dbc:h2:mem:///test_loyalty_db?options=DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    url: r2dbc:h2:mem:///test_loyalty_db
     username: sa
     password:
+
+  sql:
+    init:
+      mode: always
+      schema-locations: classpath:schema-test.sql
 
   # ── Flyway (désactivé en tests pour favoriser les schémas Testcontainers) ──
   flyway:
@@ -28,6 +31,10 @@ spring:
       resourceserver:
         jwt:
           issuer-uri: http://localhost:8080/realms/loyalty-test
+
+app:
+  bonification:
+    enabled: false
 
 # ── Logs courts en tests ─────────────────────────────────────────────────────
 logging:
