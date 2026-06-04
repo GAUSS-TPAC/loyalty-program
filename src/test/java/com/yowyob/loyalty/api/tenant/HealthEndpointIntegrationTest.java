@@ -7,6 +7,7 @@ import org.springframework.test.web.reactive.server.WebTestClient;
 
 // @Import(TestContainersConfig.class) - Included when tests run with the right profiles
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@org.springframework.test.context.ActiveProfiles({"test", "stub"})
 public class HealthEndpointIntegrationTest {
 
     @Autowired

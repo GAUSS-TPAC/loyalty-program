@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.yowyob.loyalty.domain.shared.model.TenantId;
 import com.yowyob.loyalty.domain.shared.model.UserId;
 import com.yowyob.loyalty.shared.util.RedisKeyBuilder;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.data.redis.core.ReactiveRedisTemplate;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Mono;
@@ -16,7 +17,7 @@ public class WalletCacheAdapter {
     private final ReactiveRedisTemplate<String, String> redisTemplate;
     private final ObjectMapper objectMapper;
 
-    public WalletCacheAdapter(ReactiveRedisTemplate<String, String> redisTemplate, ObjectMapper objectMapper) {
+    public WalletCacheAdapter(@Qualifier("reactiveRedisTemplate") ReactiveRedisTemplate<String, String> redisTemplate, ObjectMapper objectMapper) {
         this.redisTemplate = redisTemplate;
         this.objectMapper = objectMapper;
     }

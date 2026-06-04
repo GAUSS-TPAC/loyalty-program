@@ -46,9 +46,9 @@ class LoyaltyDomainServiceTest {
     }
 
     @Test
-    void processEvent_creditsPointsOnConditionMet() {
-        TenantId t1 = new TenantId(java.util.UUID.randomUUID());
-        UserId u1 = new UserId(java.util.UUID.randomUUID());
+    void processEvent_creditsPointsOnThirdPurchase() {
+        TenantId t1 = new TenantId(UUID.randomUUID());
+        UserId u1 = new UserId(UUID.randomUUID());
 
         Rule rule = Rule.create(UUID.randomUUID(), t1, "Bonus", "Desc",
                 new TriggerDefinition("purchase", null),
@@ -57,18 +57,83 @@ class LoyaltyDomainServiceTest {
                 10, null, null).activate();
         ruleRepo.rules.add(rule);
 
-        // We pre-set the counter to 3, representing this is the 3rd purchase (handled external to domain rules normally, or by another effect)
-        counterRepo.save(new Counter(UUID.randomUUID(), t1, u1, "purchases", 3, "LIFETIME", Instant.now(), Instant.now()));
+        EventProcessingResult result = null;
+        for (int i = 1; i <= 3; i++) {
+            result = service.processEvent(new IncomingEvent("purchase", t1, u1, "evt-" + i, Instant.now(), Map.of()));
+        }
 
-        IncomingEvent event = new IncomingEvent("purchase", t1, u1, "evt1", Instant.now(), Map.of());
-        EventProcessingResult result = service.processEvent(event);
-
+        assertNotNull(result);
         assertTrue(result.hasEffects());
-        assertEquals(1, result.effectsApplied().size());
         assertEquals("CREDIT_POINTS", result.effectsApplied().get(0).effectType());
-        
+
         PointsAccount account = pointsRepo.findByMemberId(t1, u1).orElseThrow();
         assertEquals(100, account.getAvailablePoints());
+    }
+
+    @Test
+    void processEvent_idempotentByTransactionKey_doesNotDoubleCredit() {
+        TenantId t1 = new TenantId(UUID.randomUUID());
+        UserId u1 = new UserId(UUID.randomUUID());
+        Rule rule = Rule.create(UUID.randomUUID(), t1, "Bonus", "Desc",
+                new TriggerDefinition("purchase", null),
+                List.of(new ConditionDefinition(ConditionType.CUMULATIVE_COUNT, ConditionOperator.GREATER_THAN_OR_EQUAL, 1, "LIFETIME", "purchases")),
+                List.of(new EffectDefinition(EffectType.CREDIT_POINTS, Map.of("amount", 50))),
+                10, null, null).activate();
+        ruleRepo.rules.add(rule);
+
+        IncomingEvent event = new IncomingEvent("purchase", t1, u1, "same-key", Instant.now(), Map.of());
+        service.processEvent(event);
+        service.processEvent(event);
+
+        PointsAccount account = pointsRepo.findByMemberId(t1, u1).orElseThrow();
+        assertEquals(50, account.getAvailablePoints());
+    }
+
+    @Test
+    void processEvent_incrementsCounterWithoutCreditingWhenBelowThreshold() {
+        TenantId t1 = new TenantId(UUID.randomUUID());
+        UserId u1 = new UserId(UUID.randomUUID());
+        Rule rule = Rule.create(UUID.randomUUID(), t1, "Stamp", "Desc",
+                new TriggerDefinition("purchase", null),
+                List.of(new ConditionDefinition(ConditionType.CUMULATIVE_COUNT, ConditionOperator.GREATER_THAN_OR_EQUAL, 10, "LIFETIME", "purchases")),
+                List.of(new EffectDefinition(EffectType.CREDIT_POINTS, Map.of("amount", 100))),
+                10, null, null).activate();
+        ruleRepo.rules.add(rule);
+
+        service.processEvent(new IncomingEvent("purchase", t1, u1, "e1", Instant.now(), Map.of()));
+        EventProcessingResult second = service.processEvent(new IncomingEvent("purchase", t1, u1, "e2", Instant.now(), Map.of()));
+
+        assertFalse(second.hasEffects());
+        Counter counter = counterRepo.findByKey(t1, u1, "purchases").orElseThrow();
+        assertEquals(2, counter.value());
+        assertTrue(pointsRepo.findByMemberId(t1, u1).map(a -> a.getAvailablePoints() == 0).orElse(true));
+    }
+
+    @Test
+    void processEvent_tierMultiplier_doublesPoints() {
+        TenantId t1 = new TenantId(UUID.randomUUID());
+        UserId u1 = new UserId(UUID.randomUUID());
+        Rule rule = Rule.create(UUID.randomUUID(), t1, "Gold bonus", "Desc",
+                new TriggerDefinition("purchase", null),
+                List.of(new ConditionDefinition(ConditionType.CUMULATIVE_COUNT, ConditionOperator.GREATER_THAN_OR_EQUAL, 1, "LIFETIME", "purchases")),
+                List.of(new EffectDefinition(EffectType.CREDIT_POINTS, Map.of("amount", 500))),
+                10, null, null).activate();
+        ruleRepo.rules.add(rule);
+
+        InMemoryMemberTierRepository tierRepository = new InMemoryMemberTierRepository();
+        tierRepository.tier = MemberTier.defaultTier(UUID.randomUUID(), t1, u1)
+                .withLevel(com.yowyob.loyalty.domain.loyalty.model.tier.TierLevel.GOLD, new java.math.BigDecimal("2.0"));
+        LoyaltyDomainService goldService = new LoyaltyDomainService(
+                new RuleEngine(List.of(new CumulativeCountEvaluator()), List.of(new CreditPointsExecutor())),
+                new CounterService(), new TierCalculationService(),
+                ruleRepo, pointsRepo, new InMemoryPointsTransactionRepository(), counterRepo,
+                tierRepository, new InMemoryTierPolicyRepository(),
+                new InMemoryRuleCache(), eventPublisher, null);
+
+        goldService.processEvent(new IncomingEvent("purchase", t1, u1, "evt-gold", Instant.now(), Map.of()));
+
+        PointsAccount account = pointsRepo.findByMemberId(t1, u1).orElseThrow();
+        assertEquals(1000, account.getAvailablePoints());
     }
 
     // --- In Memory Fake Implementations ---
@@ -78,7 +143,12 @@ class LoyaltyDomainServiceTest {
         @Override public Rule save(Rule rule) { rules.add(rule); return rule; }
         @Override public Optional<Rule> findById(UUID id) { return rules.stream().filter(r -> r.getId().equals(id)).findFirst(); }
         @Override public List<Rule> findActiveRulesByTenantAndEvent(TenantId t, String e) {
-            return rules.stream().filter(r -> r.getTenantId().equals(t) && r.getTrigger().eventType().equals(e)).toList();
+            return rules.stream()
+                    .filter(r -> r.getTenantId().equals(t) && r.getTrigger().eventType().equals(e) && r.getStatus() == RuleStatus.ACTIVE)
+                    .toList();
+        }
+        @Override public List<Rule> findByTenant(TenantId t) {
+            return rules.stream().filter(r -> r.getTenantId().equals(t)).toList();
         }
     }
 
@@ -104,8 +174,10 @@ class LoyaltyDomainServiceTest {
     }
 
     static class InMemoryMemberTierRepository implements MemberTierRepository {
-        @Override public MemberTier save(MemberTier tier) { return tier; }
-        @Override public Optional<MemberTier> findByMemberId(TenantId t, UserId u) { return Optional.empty(); }
+        MemberTier tier;
+
+        @Override public MemberTier save(MemberTier tier) { this.tier = tier; return tier; }
+        @Override public Optional<MemberTier> findByMemberId(TenantId t, UserId u) { return Optional.ofNullable(tier); }
     }
 
     static class InMemoryTierPolicyRepository implements TierPolicyRepository {

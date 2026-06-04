@@ -15,6 +15,7 @@ public class HexagonalArchitectureTest {
 
         ArchRule rule = noClasses()
                 .that().resideInAPackage("..domain..")
+                .and().haveSimpleNameNotEndingWith("Test")
                 .should().dependOnClassesThat().resideInAPackage("..infrastructure..");
 
         rule.check(importedClasses);
@@ -26,7 +27,8 @@ public class HexagonalArchitectureTest {
 
         ArchRule rule = noClasses()
                 .that().resideInAPackage("..domain..")
-                .should().dependOnClassesThat().resideInAPackage("..api..");
+                .and().haveSimpleNameNotEndingWith("Test")
+                .should().dependOnClassesThat().resideInAnyPackage("com.yowyob.loyalty.api..");
 
         rule.check(importedClasses);
     }

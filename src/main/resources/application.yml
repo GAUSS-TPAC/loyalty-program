@@ -64,6 +64,8 @@ spring:
       wallet-closed: wallet.closed
       wallet-fraud-suspected: wallet.fraud_suspected
       payment-confirmed: payment.confirmed
+      loyalty-events: loyalty.events
+      loyalty-reward-grants: loyalty.rewards.grant-requests
 
   # ── Sécurité OAuth2 Resource Server (JWT) ───────────────────
   security:
@@ -122,6 +124,15 @@ app:
     token-endpoint: ${KERNEL_TOKEN_ENDPOINT:}
     connect-timeout-ms: 3000
     read-timeout-ms: 5000
+
+  bonification:
+    enabled: ${BONIFICATION_ENABLED:true}
+    base-url: ${BONIFICATION_API_BASE_URL:https://bonusapi.onrender.com}
+    default-login: ${BONIFICATION_LOGIN:}
+    default-password: ${BONIFICATION_PASSWORD:}
+    token-ttl: ${BONIFICATION_TOKEN_TTL:PT50M}
+    connect-timeout-ms: ${BONIFICATION_CONNECT_TIMEOUT_MS:5000}
+    read-timeout-ms: ${BONIFICATION_READ_TIMEOUT_MS:15000}
 
   security:
     jwt:

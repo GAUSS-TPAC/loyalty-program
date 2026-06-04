@@ -14,7 +14,8 @@ public enum ErrorCode {
     IDEMPOTENCY_CONFLICT(409),
     INTERNAL_ERROR(500),
     VALIDATION_ERROR(400),
-    RESOURCE_NOT_FOUND(404);
+    RESOURCE_NOT_FOUND(404),
+    BONIFICATION_UNAVAILABLE(502);
 
     private final int httpStatus;
 

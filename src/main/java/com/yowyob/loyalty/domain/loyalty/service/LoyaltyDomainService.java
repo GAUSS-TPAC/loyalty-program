@@ -12,8 +12,17 @@ import com.yowyob.loyalty.domain.loyalty.model.rule.Rule;
 import com.yowyob.loyalty.domain.loyalty.model.tier.MemberTier;
 import com.yowyob.loyalty.domain.loyalty.model.tier.TierLevel;
 import com.yowyob.loyalty.domain.loyalty.model.tier.TierPolicy;
-import com.yowyob.loyalty.domain.loyalty.port.in.ProcessEventUseCase;
+import com.yowyob.loyalty.domain.loyalty.model.rule.ConditionDefinition;
+import com.yowyob.loyalty.domain.loyalty.model.rule.ConditionType;
+import com.yowyob.loyalty.domain.loyalty.model.rule.EffectDefinition;
+import com.yowyob.loyalty.domain.loyalty.model.rule.TriggerDefinition;
+import com.yowyob.loyalty.domain.loyalty.exception.LoyaltyDomainException;
+import com.yowyob.loyalty.domain.loyalty.port.in.*;
 import com.yowyob.loyalty.domain.loyalty.port.out.*;
+import com.yowyob.loyalty.domain.shared.model.TenantId;
+import com.yowyob.loyalty.domain.shared.model.UserId;
+
+import java.time.Instant;
 import com.yowyob.loyalty.domain.loyalty.service.executor.EffectExecutionContext;
 import com.yowyob.loyalty.domain.wallet.port.in.CreditWalletUseCase;
 
@@ -21,7 +30,8 @@ import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-public class LoyaltyDomainService implements ProcessEventUseCase {
+public class LoyaltyDomainService implements ProcessEventUseCase, CreateRuleUseCase, ActivateRuleUseCase,
+        GetMemberPointsUseCase, GetMemberTierUseCase {
 
     private final RuleEngine ruleEngine;
     private final CounterService counterService;
@@ -84,8 +94,6 @@ public class LoyaltyDomainService implements ProcessEventUseCase {
         TierPolicy tierPolicy = tierPolicyRepo.findByTenantId(event.tenantId())
                 .orElseGet(() -> TierPolicy.defaults(event.tenantId()));
 
-        EvaluationContext context = new EvaluationContext(event, pointsAccount, memberTier, counters, tierPolicy);
-
         // 3. Load Active Rules (with cache)
         List<Rule> rules = ruleCache.getCachedRules(event.tenantId(), event.eventType());
         if (rules == null || rules.isEmpty()) {
@@ -93,7 +101,12 @@ public class LoyaltyDomainService implements ProcessEventUseCase {
             ruleCache.cacheRules(event.tenantId(), event.eventType(), rules);
         }
 
-        // 4. Evaluate Rules
+        // 4. Progress stamp counters for matching triggers before rule evaluation
+        incrementCountersForMatchedTriggers(event, rules, counters);
+
+        EvaluationContext context = new EvaluationContext(event, pointsAccount, memberTier, counters, tierPolicy);
+
+        // 5. Evaluate Rules
         EffectExecutionContext effectContext = new EffectExecutionContext();
         List<RuleEvaluationResult> ruleResults = ruleEngine.process(rules, context, effectContext);
 
@@ -160,19 +173,19 @@ public class LoyaltyDomainService implements ProcessEventUseCase {
         }
 
         // 6. Persist state
-        if (updatedAccount.getVersion() > pointsAccount.getVersion() || updatedAccount.getId() != pointsAccount.getId()) {
+        if (updatedAccount.getVersion() > pointsAccount.getVersion() || !updatedAccount.getId().equals(pointsAccount.getId())) {
             pointsRepo.save(updatedAccount);
         }
-        
+
         for (Counter c : updatedCounters.values()) {
             counterRepo.save(c);
         }
 
-        if (updatedTier != memberTier) {
+        if (!updatedTier.equals(memberTier)) {
             tierRepo.save(updatedTier);
         }
 
-        // 7. Publish Result
+        // 8. Publish Result
         List<String> notifications = effectContext.getPendingNotifications().stream()
                 .map(EffectExecutionContext.NotificationOperation::template)
                 .collect(Collectors.toList());
@@ -189,5 +202,83 @@ public class LoyaltyDomainService implements ProcessEventUseCase {
         eventPublisher.publishProcessedEvent(finalResult);
 
         return finalResult;
+    }
+
+    @Override
+    public Rule createRule(TenantId tenantId, String name, String description, TriggerDefinition trigger,
+                           List<ConditionDefinition> conditions, List<EffectDefinition> effects, int priority,
+                           Instant validFrom, Instant validUntil) {
+        Rule rule = Rule.create(UUID.randomUUID(), tenantId, name, description, trigger, conditions, effects,
+                priority, validFrom, validUntil);
+        return ruleRepo.save(rule);
+    }
+
+    @Override
+    public Rule activateRule(TenantId tenantId, UUID ruleId) {
+        Rule rule = ruleRepo.findById(ruleId)
+                .filter(r -> r.getTenantId().equals(tenantId))
+                .orElseThrow(() -> new LoyaltyDomainException("Règle introuvable: " + ruleId));
+        Rule activated = rule.activate();
+        ruleCache.invalidateCache(tenantId);
+        return ruleRepo.save(activated);
+    }
+
+    @Override
+    public PointsAccount getPoints(TenantId tenantId, UserId memberId) {
+        return pointsRepo.findByMemberId(tenantId, memberId)
+                .orElseGet(() -> PointsAccount.create(UUID.randomUUID(), tenantId, memberId));
+    }
+
+    @Override
+    public List<PointsTransaction> getPointsHistory(TenantId tenantId, UserId memberId, int page, int size) {
+        return pointsRepo.findByMemberId(tenantId, memberId)
+                .map(account -> pointsTxRepo.findByAccountId(account.getId(), size, page * size))
+                .orElse(List.of());
+    }
+
+    @Override
+    public MemberTier getTier(TenantId tenantId, UserId memberId) {
+        return tierRepo.findByMemberId(tenantId, memberId)
+                .orElseGet(() -> MemberTier.defaultTier(UUID.randomUUID(), tenantId, memberId));
+    }
+
+    private void incrementCountersForMatchedTriggers(IncomingEvent event, List<Rule> rules, Map<String, Counter> counters) {
+        for (Rule rule : rules) {
+            if (!rule.isActiveAt(event.occurredAt()) || !rule.triggerMatches(event)) {
+                continue;
+            }
+            String counterKey = resolveCounterKey(rule);
+            String windowType = resolveWindowType(rule);
+            Counter current = counters.get(counterKey);
+            Counter updated = counterService.processIncrement(current, event, 1, windowType);
+            updated = new Counter(
+                    updated.id(),
+                    updated.tenantId(),
+                    updated.memberId(),
+                    counterKey,
+                    updated.value(),
+                    updated.windowType(),
+                    updated.windowStart(),
+                    updated.updatedAt()
+            );
+            counters.put(counterKey, updated);
+        }
+    }
+
+    private static String resolveCounterKey(Rule rule) {
+        return rule.getConditions().stream()
+                .filter(c -> c.type() == ConditionType.CUMULATIVE_COUNT || c.type() == ConditionType.CUMULATIVE_AMOUNT)
+                .map(ConditionDefinition::counterKey)
+                .filter(key -> key != null && !key.isBlank())
+                .findFirst()
+                .orElse("rule_" + rule.getId() + "_count");
+    }
+
+    private static String resolveWindowType(Rule rule) {
+        return rule.getConditions().stream()
+                .map(ConditionDefinition::windowType)
+                .filter(w -> w != null && !w.isBlank())
+                .findFirst()
+                .orElse("LIFETIME");
     }
 }

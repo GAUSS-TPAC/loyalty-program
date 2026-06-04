@@ -1,6 +1,7 @@
 package com.yowyob.loyalty.shared.exception;
 
 import com.yowyob.loyalty.api.shared.dto.ProblemDetails;
+import com.yowyob.loyalty.domain.bonification.exception.BonificationException;
 import java.time.Instant;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -19,6 +20,21 @@ import reactor.core.publisher.Mono;
 public class GlobalExceptionHandler {
 
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+
+    @ExceptionHandler(BonificationException.class)
+    public Mono<ResponseEntity<ProblemDetails>> handleBonificationException(BonificationException ex, ServerWebExchange exchange) {
+        String requestId = extractRequestId(exchange);
+        ProblemDetails problemDetails = new ProblemDetails(
+                "https://loyalty.yowyob.com/errors/bonification_unavailable",
+                ErrorCode.BONIFICATION_UNAVAILABLE.name(),
+                HttpStatus.BAD_GATEWAY.value(),
+                ex.getMessage(),
+                requestId,
+                Instant.now(),
+                null
+        );
+        return Mono.just(ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(problemDetails));
+    }
 
     @ExceptionHandler(AppException.class)
     public Mono<ResponseEntity<ProblemDetails>> handleAppException(AppException ex, ServerWebExchange exchange) {

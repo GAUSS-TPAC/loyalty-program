@@ -38,4 +38,12 @@ public final class RedisKeyBuilder {
     public static String bonificationTokenKey(TenantId tenantId) {
         return PREFIX + ":" + tenantId.value() + ":bonification:auth:token";
     }
+
+    public static String rulesKey(TenantId tenantId, String eventType) {
+        return PREFIX + ":" + tenantId.value() + ":rules:active:" + eventType;
+    }
+
+    public static String counterKey(TenantId tenantId, com.yowyob.loyalty.domain.shared.model.UserId memberId, String counterKey) {
+        return PREFIX + ":" + tenantId.value() + ":counter:" + memberId.value() + ":" + counterKey;
+    }
 }

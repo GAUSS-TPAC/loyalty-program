@@ -5,10 +5,12 @@ import com.yowyob.loyalty.domain.wallet.port.out.WalletEventPublisherPort;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.kafka.core.reactive.ReactiveKafkaProducerTemplate;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Mono;
 
 @Component
+@Profile("!test")
 public class WalletEventProducer implements WalletEventPublisherPort {
     private static final Logger log = LoggerFactory.getLogger(WalletEventProducer.class);
     private final ReactiveKafkaProducerTemplate<String, Object> kafkaTemplate;
