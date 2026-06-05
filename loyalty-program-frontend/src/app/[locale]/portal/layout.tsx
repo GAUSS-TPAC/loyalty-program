@@ -3,12 +3,13 @@
 import { useEffect, useState } from "react";
 import { useRouter, Link } from "@/i18n/routing";
 import { usePathname } from "next/navigation";
-import { Terminal, Settings, LogOut, Code2, Cpu, Wallet, Users } from "lucide-react";
+import { Terminal, Settings, LogOut, Code2, Cpu, Wallet, Users, LayoutDashboard, Menu, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 
 export default function PortalLayout({ children }: { children: React.ReactNode }) {
   const [apiKey, setApiKey] = useState<string | null>(null);
+  const [isMobileOpen, setIsMobileOpen] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
   const tNav = useTranslations("Navigation");
@@ -25,6 +26,11 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
     }
   }, [router]);
 
+  // Close sidebar drawer on screen transitions or nav clicks
+  useEffect(() => {
+    setIsMobileOpen(false);
+  }, [pathname]);
+
   const handleLogout = () => {
     sessionStorage.removeItem("loyalty_api_key");
     router.push("/");
@@ -32,13 +38,8 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
 
   if (!apiKey) return <div className="min-h-screen bg-background" />;
 
-  // The pathname from next/navigation might have /en/ or /fr/ in it.
-  // Using next-intl's usePathname removes the locale prefix, making it easier to match!
-  // Oh wait, next/navigation usePathname includes the locale. Let's fix that below by importing from @/i18n/routing if needed.
-  // Actually, I can just use next-intl's usePathname.
-  // But wait! next-intl's usePathname requires a different import. I'll stick to next/navigation for now and do a simple string match.
-
   const navItems = [
+    { name: tNav("overview"), href: "/portal", exact: true, icon: LayoutDashboard },
     { name: tNav("rulesConfig"), href: "/portal/rules", icon: Code2 },
     { name: tNav("establishment"), href: "/portal/establishment", icon: Settings },
     { name: tNav("walletPolicy"), href: "/portal/wallet/config", icon: Wallet },
@@ -48,23 +49,46 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
 
   return (
     <div className="flex min-h-screen bg-background text-foreground font-sans selection:bg-primary selection:text-white">
-      {/* Sidebar */}
-      <aside className="w-64 border-r border-border bg-card flex flex-col shadow-sm z-20">
-        <div className="p-6 border-b border-border">
-          <div className="flex items-center gap-3 mb-4">
+      {/* Sidebar Overlay on mobile */}
+      {isMobileOpen && (
+        <div 
+          className="fixed inset-0 bg-background/60 backdrop-blur-sm z-20 md:hidden" 
+          onClick={() => setIsMobileOpen(false)} 
+        />
+      )}
+
+      {/* Sidebar drawer */}
+      <aside className={`fixed inset-y-0 left-0 w-64 border-r border-border bg-card flex flex-col shadow-sm z-35 transform transition-transform duration-300 md:translate-x-0 md:static ${
+        isMobileOpen ? "translate-x-0" : "-translate-x-full"
+      }`}>
+        <div className="p-6 border-b border-border flex items-center justify-between">
+          <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-lg bg-secondary flex items-center justify-center border border-border">
               <Cpu className="w-4 h-4 text-primary" />
             </div>
             <span className="font-semibold tracking-wide text-foreground">{tSide("loyaltyCore")}</span>
           </div>
-          <div className="text-xs text-muted-foreground truncate bg-muted px-2 py-1 rounded-md border border-border" title={apiKey}>
-            {tSide("key")}{apiKey.substring(0, 14)}...
+          {/* Close Toggle */}
+          <button
+            onClick={() => setIsMobileOpen(false)}
+            className="md:hidden p-1.5 rounded-lg hover:bg-secondary text-muted-foreground active:scale-95 transition-all"
+          >
+            <X className="w-4.5 h-4.5" />
+          </button>
+        </div>
+        
+        <div className="p-6 pt-4 pb-4 border-b border-border">
+          <div className="text-xs text-muted-foreground truncate bg-muted px-2 py-1 rounded-md border border-border" title={apiKey || ""}>
+            {tSide("key")}{apiKey ? `${apiKey.substring(0, 14)}...` : ""}
           </div>
         </div>
 
-        <nav className="flex-1 p-4 space-y-1">
+        <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
           {navItems.map((item) => {
-            const isActive = pathname.includes(item.href);
+            const cleanPath = pathname.replace(/^\/[a-z]{2}(?=\/|$)/, "") || "/";
+            const isActive = item.exact
+              ? cleanPath === item.href
+              : cleanPath.startsWith(item.href);
             return (
               <Link
                 key={item.href}
@@ -95,15 +119,24 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
 
       {/* Main Content */}
       <main className="flex-1 flex flex-col overflow-hidden relative">
-        <header className="h-16 border-b border-border flex items-center justify-between px-8 bg-card/80 backdrop-blur sticky top-0 z-10 shadow-sm">
-          <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
-            {tHeader("dashboard")}
-          </h2>
+        <header className="h-16 border-b border-border flex items-center justify-between px-6 md:px-8 bg-card/80 backdrop-blur sticky top-0 z-10 shadow-sm">
+          <div className="flex items-center gap-3">
+            {/* Hamburger toggle */}
+            <button
+              onClick={() => setIsMobileOpen(true)}
+              className="md:hidden p-2 -ml-2 rounded-lg hover:bg-secondary text-muted-foreground active:scale-95 transition-all"
+            >
+              <Menu className="w-5 h-5" />
+            </button>
+            <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
+              {tHeader("dashboard")}
+            </h2>
+          </div>
           <div>
             <LanguageSwitcher />
           </div>
         </header>
-        <div className="flex-1 overflow-auto p-8 bg-background">
+        <div className="flex-1 overflow-auto p-4 sm:p-6 md:p-8 bg-background">
           <div className="max-w-6xl mx-auto space-y-8 pb-12">
             {children}
           </div>
