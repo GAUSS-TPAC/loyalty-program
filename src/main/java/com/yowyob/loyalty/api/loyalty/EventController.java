@@ -4,6 +4,7 @@ import com.yowyob.loyalty.api.loyalty.dto.request.IncomingEventRequest;
 import com.yowyob.loyalty.api.loyalty.dto.response.EventProcessingResponse;
 import com.yowyob.loyalty.application.loyalty.handler.ProcessEventHandler;
 import com.yowyob.loyalty.shared.multitenancy.TenantContextHolder;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpHeaders;
 import org.springframework.web.bind.annotation.*;
@@ -11,6 +12,7 @@ import reactor.core.publisher.Mono;
 
 @RestController
 @RequestMapping("/api/v1/events")
+@Tag(name = "Events", description = "Traitement des événements loyalty")
 public class EventController {
 
     private final ProcessEventHandler processEventHandler;

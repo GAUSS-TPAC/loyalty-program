@@ -1,24 +1,22 @@
 spring:
-  profiles:
-    active: dev, stub
-
+  # Activer avec : SPRING_PROFILES_ACTIVE=dev,stub ou -Dspring-boot.run.profiles=dev,stub
   application:
     name: loyaulty-program
 
   # ── R2DBC (développement local) ──────────────────────────────
   r2dbc:
-    url: r2dbc:postgresql://localhost:5432/loyalty_dev
-    username: loyalty_user
-    password: loyalty_pass
+    url: r2dbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:loyalty_db}
+    username: ${DB_USER:loyalty_user}
+    password: ${DB_PASSWORD:loyalty_pass}
     pool:
       initial-size: 2
       max-size: 5
 
   # ── Flyway ───────────────────────────────────────────────────
   flyway:
-    url: jdbc:postgresql://localhost:5432/loyalty_dev
-    user: loyalty_user
-    password: loyalty_pass
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:loyalty_db}
+    user: ${DB_USER:loyalty_user}
+    password: ${DB_PASSWORD:loyalty_pass}
 
   # ── Redis ─────────────────────────────────────────────────────
   data:
@@ -31,16 +29,31 @@ spring:
   kafka:
     bootstrap-servers: localhost:9092
 
-  # ── Sécurité (désactivée en dev pour Swagger) ─────────────────
+  # ── Sécurité OAuth2 (Keycloak local optionnel) ────────────────
   security:
     oauth2:
       resourceserver:
         jwt:
           issuer-uri: http://localhost:8080/realms/loyalty-dev
 
+# ── SpringDoc / Swagger (dev) ─────────────────────────────────
+springdoc:
+  swagger-ui:
+    enabled: true
+    path: /swagger-ui.html
+    try-it-out-enabled: true
+  api-docs:
+    enabled: true
+    path: /v3/api-docs
+
 # ── Serveur ───────────────────────────────────────────────────
 server:
-  port: 8081
+  # 8081 souvent occupé (ex. Adminer) — surcharge via SERVER_PORT si besoin
+  port: ${SERVER_PORT:8082}
+
+app:
+  dev:
+    default-tenant-id: 00000000-0000-0000-0000-000000000001
 
 # ── Logs verbeux en dev ───────────────────────────────────────
 logging:

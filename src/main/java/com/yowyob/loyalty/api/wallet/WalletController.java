@@ -7,11 +7,13 @@ import com.yowyob.loyalty.domain.shared.model.TenantId;
 import com.yowyob.loyalty.domain.shared.model.UserId;
 import com.yowyob.loyalty.domain.wallet.port.in.GetWalletUseCase;
 import com.yowyob.loyalty.domain.wallet.port.out.WalletPolicyRepository;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Mono;
 
 @RestController
 @RequestMapping("/api/v1/wallet")
+@Tag(name = "Wallet", description = "Portefeuille et soldes")
 public class WalletController {
     
     private final GetWalletUseCase getWalletUseCase;

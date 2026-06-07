@@ -7,6 +7,7 @@ import com.yowyob.loyalty.shared.security.JwtClaimsExtractor;
 import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ServerWebExchange;
 import org.springframework.web.server.WebFilter;
@@ -15,6 +16,7 @@ import reactor.core.publisher.Mono;
 
 @Component
 @Order(-200)
+@Profile("!dev")
 public class TenantResolutionFilter implements WebFilter {
 
     private final TenantCacheAdapter tenantCacheAdapter;
@@ -31,7 +33,8 @@ public class TenantResolutionFilter implements WebFilter {
     public Mono<Void> filter(ServerWebExchange exchange, WebFilterChain chain) {
         String path = exchange.getRequest().getURI().getPath();
 
-        if (path.startsWith("/public/") || path.startsWith("/actuator") || path.startsWith("/swagger-ui") || path.startsWith("/api-docs")) {
+        if (path.startsWith("/public/") || path.startsWith("/actuator") || path.startsWith("/swagger-ui")
+                || path.startsWith("/v3/api-docs") || path.startsWith("/api-docs") || path.startsWith("/webjars/")) {
             return chain.filter(exchange);
         }
 

@@ -32,17 +32,22 @@ public class DatabaseInitializer implements ApplicationRunner {
                     "SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'tenants'"
                 ).execute())
                 .flatMap(result -> Mono.from(result.map((row, rowMetadata) -> row.get(0, Integer.class))))
-                .doOnNext(val -> log.info("Public 'tenants' table verified."))
-                .then(Mono.defer(() -> {
-                     return Mono.from(connection.createStatement("SELECT id FROM public.tenants WHERE status = 'ACTIVE'").execute())
-                        .flatMapMany(result -> result.map((row, rowMetadata) -> row.get("id", java.util.UUID.class)))
-                        .flatMap(tenantId -> {
-                            String schemaName = "tenant_" + tenantId.toString().substring(0, 8);
-                            return Mono.from(connection.createStatement("CREATE SCHEMA IF NOT EXISTS " + schemaName).execute())
-                                    .doOnSuccess(v -> log.info("Schema verified/created: {}", schemaName));
-                        })
-                        .then();
-                }))
+                .hasElement()
+                .flatMap(tenantsTableExists -> {
+                    if (!tenantsTableExists) {
+                        log.warn("Public 'tenants' table not found — skipping tenant schema initialization.");
+                        return Mono.empty();
+                    }
+                    log.info("Public 'tenants' table verified.");
+                    return Mono.from(connection.createStatement("SELECT id FROM public.tenants WHERE status = 'ACTIVE'").execute())
+                            .flatMapMany(result -> result.map((row, rowMetadata) -> row.get("id", java.util.UUID.class)))
+                            .flatMap(tenantId -> {
+                                String schemaName = "tenant_" + tenantId.toString().substring(0, 8);
+                                return Mono.from(connection.createStatement("CREATE SCHEMA IF NOT EXISTS " + schemaName).execute())
+                                        .doOnSuccess(v -> log.info("Schema verified/created: {}", schemaName));
+                            })
+                            .then();
+                })
                 .doFinally(signalType -> Mono.from(connection.close()).subscribe())
             )
             .subscribe(

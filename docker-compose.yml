@@ -60,10 +60,6 @@ services:
       timeout: 5s
       retries: 5
 
-volumes:
-  postgres_data:
-  redis_data:
-
   keycloak:
     image: quay.io/keycloak/keycloak:23.0
     container_name: loyalty-keycloak
@@ -87,4 +83,8 @@ volumes:
       interval: 10s
       timeout: 5s
       retries: 5
+
+volumes:
+  postgres_data:
+  redis_data:
 
