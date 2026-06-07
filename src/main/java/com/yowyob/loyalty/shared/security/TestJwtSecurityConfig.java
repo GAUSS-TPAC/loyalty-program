@@ -14,7 +14,7 @@ import java.time.Instant;
 import java.util.Map;
 
 @Configuration
-@Profile("test")
+@Profile({"test", "dev", "stub"})
 public class TestJwtSecurityConfig {
 
     @Bean

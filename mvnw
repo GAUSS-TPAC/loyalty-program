@@ -32,6 +32,22 @@
 set -euf
 [ "${MVNW_VERBOSE-}" != debug ] || set -x
 
+# Projet cible Java 21 — évite Lombok/javac en échec avec JDK 24+
+if [ -z "${JAVA_HOME-}" ]; then
+  for __java21 in \
+    /usr/lib/jvm/java-21-openjdk-amd64 \
+    /usr/lib/jvm/java-21-openjdk \
+    /usr/lib/jvm/jdk-21 \
+    /usr/lib/jvm/temurin-21-jdk; do
+    if [ -x "$__java21/bin/java" ]; then
+      JAVA_HOME="$__java21"
+      export JAVA_HOME
+      break
+    fi
+  done
+  unset __java21
+fi
+
 # OS specific support.
 native_path() { printf %s\\n "$1"; }
 case "$(uname)" in

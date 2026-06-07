@@ -3,12 +3,8 @@ package com.yowyob.loyalty.shared.security;
 import com.yowyob.loyalty.infrastructure.security.config.JwtProperties;
 import org.springframework.security.oauth2.jwt.NimbusReactiveJwtDecoder;
 import org.springframework.security.oauth2.jwt.ReactiveJwtDecoder;
-import org.springframework.context.annotation.Profile;
-import org.springframework.stereotype.Component;
 import reactor.core.publisher.Mono;
 
-@Component
-@Profile("!test")
 public class JwtTokenValidator {
 
     private final ReactiveJwtDecoder jwtDecoder;

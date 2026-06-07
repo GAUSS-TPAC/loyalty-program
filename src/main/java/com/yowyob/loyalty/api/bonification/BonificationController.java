@@ -9,6 +9,7 @@ import com.yowyob.loyalty.domain.bonification.model.BonificationTransactionReque
 import com.yowyob.loyalty.domain.bonification.port.out.BonificationPort;
 import com.yowyob.loyalty.infrastructure.bonification.config.BonificationProperties;
 import com.yowyob.loyalty.shared.multitenancy.TenantContextHolder;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -19,6 +20,7 @@ import reactor.core.publisher.Mono;
 
 @RestController
 @RequestMapping("/api/v1/bonification")
+@Tag(name = "Bonification", description = "Intégration API bonification externe")
 public class BonificationController {
 
     private final BonificationPort bonificationPort;

@@ -7,6 +7,7 @@ import com.yowyob.loyalty.domain.loyalty.port.in.GetMemberPointsUseCase;
 import com.yowyob.loyalty.domain.loyalty.port.in.GetMemberTierUseCase;
 import com.yowyob.loyalty.domain.shared.model.UserId;
 import com.yowyob.loyalty.shared.multitenancy.TenantContextHolder;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -15,6 +16,7 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1/members/{memberId}")
+@Tag(name = "Members", description = "Points et tier des membres")
 public class MemberLoyaltyController {
 
     private final GetMemberPointsUseCase getMemberPointsUseCase;

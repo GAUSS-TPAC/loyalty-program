@@ -6,6 +6,7 @@ import com.yowyob.loyalty.application.loyalty.handler.ActivateRuleHandler;
 import com.yowyob.loyalty.application.loyalty.handler.CreateRuleHandler;
 import com.yowyob.loyalty.domain.loyalty.port.out.RuleRepository;
 import com.yowyob.loyalty.shared.multitenancy.TenantContextHolder;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
@@ -16,6 +17,7 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1/admin/rules")
+@Tag(name = "Rules", description = "Gestion des règles de fidélité (admin)")
 public class RuleController {
 
     private final CreateRuleHandler createRuleHandler;
