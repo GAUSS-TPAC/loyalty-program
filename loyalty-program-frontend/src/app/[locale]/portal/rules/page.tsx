@@ -1,191 +1,129 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Coins, Plus, Save, Trash2, Info, AlertTriangle, Share2 } from "lucide-react";
+import { useState } from "react";
+import {
+  Coins,
+  Plus,
+  CheckCircle,
+  AlertTriangle,
+  Info,
+  RefreshCw,
+  Zap,
+  Code2,
+} from "lucide-react";
 import { useTranslations } from "next-intl";
+import { rulesApi, type RuleResponse } from "@/lib/api";
+import { useRules } from "@/hooks/useBackend";
 
-interface BonusRule {
-  id: string;
-  description: string;
-  amountMin: number;
-  amountMax: number;
-  points: number;
-  minDaysForIrregularClients: number;
-  alwaysCredit: boolean;
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function statusBadge(status: RuleResponse["status"]) {
+  if (status === "ACTIVE")
+    return (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium bg-green-100 text-green-700 border border-green-200">
+        <CheckCircle className="w-3 h-3" /> Actif
+      </span>
+    );
+  if (status === "INACTIVE")
+    return (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium bg-muted text-muted-foreground border border-border">
+        Inactif
+      </span>
+    );
+  return (
+    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium bg-orange-100 text-orange-700 border border-orange-200">
+      Brouillon
+    </span>
+  );
 }
 
-const DEFAULT_RULES: BonusRule[] = [
-  {
-    id: "1",
-    description: "Welcome Bonus",
-    amountMin: 1000,
-    amountMax: 5000,
-    points: 50,
-    minDaysForIrregularClients: 3,
-    alwaysCredit: true,
-  },
-  {
-    id: "2",
-    description: "Premium Rule",
-    amountMin: 10000,
-    amountMax: 50000,
-    points: 200,
-    minDaysForIrregularClients: 5,
-    alwaysCredit: false,
-  }
-];
+// ─── Composant principal ───────────────────────────────────────────────────────
 
 export default function RulesConfiguration() {
   const t = useTranslations("Rules");
+  const { data: rules, isLoading, error, refetch } = useRules();
 
-  // Client-side states to prevent Next.js hydration mismatch
-  const [rules, setRules] = useState<BonusRule[]>([]);
-  const [pointValue, setPointValue] = useState<number>(100);
-  const [isLoaded, setIsLoaded] = useState(false);
+  // ── Form state ──────────────────────────────────────────────────────────────
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
+  const [eventType, setEventType] = useState("purchase.completed");
+  const [effectValue, setEffectValue] = useState("");
+  const [priority, setPriority] = useState("1");
+  const [validFrom, setValidFrom] = useState(
+    new Date().toISOString().split("T")[0]
+  );
 
-  // Form states - Create Rule
-  const [newDesc, setNewDesc] = useState("");
-  const [newMinAmount, setNewMinAmount] = useState("");
-  const [newMaxAmount, setNewMaxAmount] = useState("");
-  const [newPoints, setNewPoints] = useState("");
-  const [newInactivity, setNewInactivity] = useState("");
-  const [newAlwaysCredit, setNewAlwaysCredit] = useState(false);
+  // ── UI state ─────────────────────────────────────────────────────────────────
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [activatingId, setActivatingId] = useState<string | null>(null);
+  const [toast, setToast] = useState<{
+    message: string;
+    type: "success" | "error";
+  } | null>(null);
 
-  // Form states - Point Value
-  const [tempPointValue, setTempPointValue] = useState("");
-
-  // Referral states
-  const [referralActive, setReferralActive] = useState(false);
-  const [referrerPoints, setReferrerPoints] = useState(100);
-  const [refereePoints, setRefereePoints] = useState(50);
-
-  // Modal / Feedback states
-  const [ruleToDelete, setRuleToDelete] = useState<BonusRule | null>(null);
-  const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
-
-  // Load from localStorage on mount
-  useEffect(() => {
-    const savedRules = localStorage.getItem("loyalty_rules");
-    if (savedRules) {
-      try {
-        setRules(JSON.parse(savedRules));
-      } catch (e) {
-        setRules(DEFAULT_RULES);
-      }
-    } else {
-      setRules(DEFAULT_RULES);
-      localStorage.setItem("loyalty_rules", JSON.stringify(DEFAULT_RULES));
-    }
-
-    const savedPointValue = localStorage.getItem("loyalty_point_value");
-    if (savedPointValue) {
-      const parsed = parseFloat(savedPointValue);
-      if (!isNaN(parsed)) {
-        setPointValue(parsed);
-      }
-    } else {
-      localStorage.setItem("loyalty_point_value", "100");
-    }
-
-    // Referral Settings loading
-    const savedReferralActive = localStorage.getItem("loyalty_referral_active");
-    setReferralActive(savedReferralActive === "true");
-
-    const savedReferrerPoints = localStorage.getItem("loyalty_referral_referrer_points");
-    setReferrerPoints(savedReferrerPoints ? parseInt(savedReferrerPoints) : 100);
-
-    const savedRefereePoints = localStorage.getItem("loyalty_referral_referee_points");
-    setRefereePoints(savedRefereePoints ? parseInt(savedRefereePoints) : 50);
-
-    setIsLoaded(true);
-  }, []);
-
-  // Show auto-dismiss toast
   const showToast = (message: string, type: "success" | "error") => {
     setToast({ message, type });
-    setTimeout(() => {
-      setToast(null);
-    }, 3000);
+    setTimeout(() => setToast(null), 3500);
   };
 
-  // Create rule handler
-  const handleCreateRule = (e: React.FormEvent) => {
+  // ── Créer une règle ──────────────────────────────────────────────────────────
+  const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newDesc.trim()) return;
-
-    const newRule: BonusRule = {
-      id: Math.random().toString(36).substring(2, 9),
-      description: newDesc,
-      amountMin: Number(newMinAmount) || 0,
-      amountMax: Number(newMaxAmount) || 0,
-      points: Number(newPoints) || 0,
-      minDaysForIrregularClients: Number(newInactivity) || 0,
-      alwaysCredit: newAlwaysCredit,
-    };
-
-    const updatedRules = [...rules, newRule].sort((a, b) => a.amountMin - b.amountMin);
-    setRules(updatedRules);
-    localStorage.setItem("loyalty_rules", JSON.stringify(updatedRules));
-
-    // Reset Form
-    setNewDesc("");
-    setNewMinAmount("");
-    setNewMaxAmount("");
-    setNewPoints("");
-    setNewInactivity("");
-    setNewAlwaysCredit(false);
-
-    showToast(t("ruleCreatedSuccess"), "success");
-  };
-
-  // Delete rule handler
-  const handleDeleteRule = () => {
-    if (!ruleToDelete) return;
-    const updatedRules = rules.filter((r) => r.id !== ruleToDelete.id);
-    setRules(updatedRules);
-    localStorage.setItem("loyalty_rules", JSON.stringify(updatedRules));
-    setRuleToDelete(null);
-    showToast("Rule deleted successfully!", "success");
-  };
-
-  // Save point value conversion handler
-  const handleSavePointValue = (e: React.FormEvent) => {
-    e.preventDefault();
-    const val = parseFloat(tempPointValue.replace(",", "."));
-    if (isNaN(val) || val <= 0) {
-      showToast(t("ruleCreateError"), "error");
-      return;
+    if (!name.trim() || !effectValue) return;
+    setIsSubmitting(true);
+    try {
+      await rulesApi.createRule({
+        name,
+        description,
+        trigger: { eventType },
+        conditions: [],
+        effects: [{ type: "CREDIT_POINTS", value: Number(effectValue) }],
+        priority: Number(priority),
+        validFrom: new Date(validFrom).toISOString(),
+        validUntil: null,
+      });
+      showToast("Règle créée avec succès !", "success");
+      setName("");
+      setDescription("");
+      setEffectValue("");
+      setPriority("1");
+      refetch();
+    } catch (err) {
+      showToast(
+        err instanceof Error ? err.message : "Erreur lors de la création",
+        "error"
+      );
+    } finally {
+      setIsSubmitting(false);
     }
-
-    setPointValue(val);
-    localStorage.setItem("loyalty_point_value", val.toString());
-    setTempPointValue("");
-    showToast("Point value updated!", "success");
   };
 
-  // Save referral settings handler
-  const handleSaveReferral = (e: React.FormEvent) => {
-    e.preventDefault();
-    localStorage.setItem("loyalty_referral_active", referralActive.toString());
-    localStorage.setItem("loyalty_referral_referrer_points", referrerPoints.toString());
-    localStorage.setItem("loyalty_referral_referee_points", refereePoints.toString());
-    showToast("Referral settings updated!", "success");
+  // ── Activer une règle ────────────────────────────────────────────────────────
+  const handleActivate = async (ruleId: string) => {
+    setActivatingId(ruleId);
+    try {
+      await rulesApi.activateRule(ruleId);
+      showToast("Règle activée !", "success");
+      refetch();
+    } catch (err) {
+      showToast(
+        err instanceof Error ? err.message : "Erreur d'activation",
+        "error"
+      );
+    } finally {
+      setActivatingId(null);
+    }
   };
-
-  if (!isLoaded) {
-    return <div className="space-y-6 animate-pulse" />;
-  }
 
   return (
     <div className="space-y-6">
-      {/* Toast Feedback */}
+      {/* Toast */}
       {toast && (
         <div
-          className={`fixed top-4 right-4 z-50 flex items-center gap-2.5 px-4 py-3 rounded-lg shadow-lg border text-sm transition-all ${
-            toast.type === "success"
+          className={`fixed top-4 right-4 z-50 flex items-center gap-2.5 px-4 py-3 rounded-lg shadow-lg border text-sm transition-all ${toast.type === "success"
               ? "bg-emerald-50 border-emerald-200 text-emerald-800"
               : "bg-rose-50 border-rose-200 text-rose-800"
-          }`}
+            }`}
         >
           <Info className="w-4 h-4" />
           <span>{toast.message}</span>
@@ -193,316 +131,296 @@ export default function RulesConfiguration() {
       )}
 
       {/* Header */}
-      <div className="space-y-1">
-        <h1 className="text-3xl font-semibold tracking-tight">{t("title")}</h1>
-        <p className="text-muted-foreground text-sm">{t("description")}</p>
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+        <div className="space-y-1">
+          <h1 className="text-3xl font-semibold tracking-tight">
+            {t("title")}
+          </h1>
+          <p className="text-muted-foreground text-sm">{t("description")}</p>
+        </div>
+        <button
+          onClick={refetch}
+          className="inline-flex items-center gap-2 text-xs font-medium text-muted-foreground hover:text-foreground border border-border px-3 py-2 rounded-lg hover:bg-secondary transition-all"
+        >
+          <RefreshCw className="w-3.5 h-3.5" /> Rafraîchir
+        </button>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left Side: Create Rule Form */}
+        {/* ── Formulaire création ─────────────────────────────────────────── */}
         <div className="lg:col-span-2 border border-border bg-card rounded-xl shadow-sm overflow-hidden">
           <div className="bg-secondary px-6 py-4 border-b border-border flex items-center gap-2.5">
             <Plus className="w-5 h-5 text-primary" />
-            <h3 className="font-semibold text-foreground">{t("createRuleTitle")}</h3>
+            <h3 className="font-semibold text-foreground">
+              {t("createRuleTitle")}
+            </h3>
           </div>
 
-          <form onSubmit={handleCreateRule} className="p-6 space-y-4">
+          <form onSubmit={handleCreate} className="p-6 space-y-4">
+            {/* Nom */}
             <div className="space-y-1.5">
               <label className="text-xs font-semibold uppercase text-muted-foreground tracking-wider ml-1">
-                {t("descriptionLabel")} *
+                Nom de la règle *
               </label>
               <input
                 type="text"
                 required
-                value={newDesc}
-                onChange={(e) => setNewDesc(e.target.value)}
-                placeholder={t("descriptionPlaceholder")}
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Ex: Bonus achat premium"
+                className="w-full bg-background border border-border rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all shadow-sm"
+              />
+            </div>
+
+            {/* Description */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold uppercase text-muted-foreground tracking-wider ml-1">
+                Description
+              </label>
+              <input
+                type="text"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Description optionnelle..."
                 className="w-full bg-background border border-border rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all shadow-sm"
               />
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Déclencheur */}
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold uppercase text-muted-foreground tracking-wider ml-1">
-                  {t("minAmountLabel")}
+                  Événement déclencheur *
+                </label>
+                <select
+                  value={eventType}
+                  onChange={(e) => setEventType(e.target.value)}
+                  className="w-full bg-background border border-border rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary shadow-sm"
+                >
+                  <option value="purchase.completed">purchase.completed</option>
+                  <option value="account.created">account.created</option>
+                  <option value="review.posted">review.posted</option>
+                  <option value="referral.converted">referral.converted</option>
+                  <option value="topup.completed">topup.completed</option>
+                </select>
+              </div>
+
+              {/* Points attribués */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold uppercase text-muted-foreground tracking-wider ml-1">
+                  Points attribués *
                 </label>
                 <input
                   type="number"
-                  value={newMinAmount}
-                  onChange={(e) => setNewMinAmount(e.target.value)}
-                  placeholder="0"
+                  min="1"
+                  required
+                  value={effectValue}
+                  onChange={(e) => setEffectValue(e.target.value)}
+                  placeholder="Ex: 100"
                   className="w-full bg-background border border-border rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all shadow-sm"
                 />
               </div>
 
+              {/* Priorité */}
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold uppercase text-muted-foreground tracking-wider ml-1">
-                  {t("maxAmountLabel")}
+                  Priorité
                 </label>
                 <input
                   type="number"
-                  value={newMaxAmount}
-                  onChange={(e) => setNewMaxAmount(e.target.value)}
-                  placeholder="0"
+                  min="1"
+                  value={priority}
+                  onChange={(e) => setPriority(e.target.value)}
                   className="w-full bg-background border border-border rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all shadow-sm"
                 />
               </div>
 
+              {/* Date de début */}
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold uppercase text-muted-foreground tracking-wider ml-1">
-                  {t("pointsLabel")}
+                  Valide à partir du
                 </label>
                 <input
-                  type="number"
-                  value={newPoints}
-                  onChange={(e) => setNewPoints(e.target.value)}
-                  placeholder="1"
+                  type="date"
+                  value={validFrom}
+                  onChange={(e) => setValidFrom(e.target.value)}
                   className="w-full bg-background border border-border rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all shadow-sm"
                 />
               </div>
-
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold uppercase text-muted-foreground tracking-wider ml-1">
-                  {t("inactivityDaysLabel")}
-                </label>
-                <input
-                  type="number"
-                  value={newInactivity}
-                  onChange={(e) => setNewInactivity(e.target.value)}
-                  placeholder="0"
-                  className="w-full bg-background border border-border rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all shadow-sm"
-                />
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2.5 pt-2">
-              <input
-                id="alwaysCredit"
-                type="checkbox"
-                checked={newAlwaysCredit}
-                onChange={(e) => setNewAlwaysCredit(e.target.checked)}
-                className="w-4 h-4 text-primary focus:ring-primary border-border rounded cursor-pointer"
-              />
-              <label htmlFor="alwaysCredit" className="text-sm text-foreground select-none cursor-pointer">
-                {t("alwaysCreditLabel")}
-              </label>
             </div>
 
             <div className="pt-2 flex justify-end">
               <button
                 type="submit"
-                className="inline-flex items-center gap-2 bg-primary text-primary-foreground px-6 py-2.5 rounded-lg text-sm font-medium hover:bg-primary/90 transition-all shadow-md active:scale-95"
+                disabled={isSubmitting}
+                className="inline-flex items-center gap-2 bg-primary text-primary-foreground px-6 py-2.5 rounded-lg text-sm font-medium hover:bg-primary/90 transition-all shadow-md active:scale-95 disabled:opacity-50 disabled:pointer-events-none"
               >
-                <Plus className="w-4 h-4" />
+                {isSubmitting ? (
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Plus className="w-4 h-4" />
+                )}
                 {t("createRuleButton")}
               </button>
             </div>
           </form>
         </div>
 
-        {/* Right Side: Configuration Panels */}
+        {/* ── Panneau info ────────────────────────────────────────────────── */}
         <div className="space-y-6">
-          {/* Conversion Parameter */}
-          <div className="border border-border bg-card rounded-xl shadow-sm overflow-hidden flex flex-col justify-between">
-            <div>
-              <div className="bg-secondary px-6 py-4 border-b border-border flex items-center gap-2.5">
-                <Coins className="w-5 h-5 text-primary" />
-                <h3 className="font-semibold text-foreground">
-                  {t("pointValueTitle", { value: pointValue.toFixed(2) })}
-                </h3>
+          <div className="border border-border bg-card rounded-xl shadow-sm overflow-hidden">
+            <div className="bg-secondary px-6 py-4 border-b border-border flex items-center gap-2.5">
+              <Coins className="w-5 h-5 text-primary" />
+              <h3 className="font-semibold text-foreground">Moteur de règles</h3>
+            </div>
+            <div className="p-6 space-y-4">
+              <div className="flex items-center justify-between p-3 rounded-lg bg-muted/30 border border-border">
+                <span className="text-sm font-medium text-foreground">
+                  Règles chargées
+                </span>
+                <span className="text-xs font-bold text-primary bg-secondary border border-border px-2.5 py-0.5 rounded font-mono">
+                  {rules?.length ?? "—"}
+                </span>
               </div>
-
-              <form onSubmit={handleSavePointValue} className="p-6 space-y-4">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold uppercase text-muted-foreground tracking-wider ml-1">
-                    {t("modifyPointValue")}
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="0.00"
-                    value={tempPointValue}
-                    onChange={(e) => setTempPointValue(e.target.value)}
-                    className="w-full bg-background border border-border rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all shadow-sm"
-                  />
-                </div>
-
-                <div className="flex justify-start">
-                  <button
-                    type="submit"
-                    disabled={!tempPointValue.trim()}
-                    className="inline-flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium hover:bg-primary/90 transition-all shadow-sm disabled:opacity-50 disabled:pointer-events-none active:scale-95"
-                  >
-                    <Save className="w-4 h-4" />
-                    {t("saveSettings")}
-                  </button>
-                </div>
-              </form>
-            </div>
-
-            <div className="p-6 bg-muted/20 border-t border-border/60 text-xs text-muted-foreground flex gap-2">
-              <Info className="w-4 h-4 flex-shrink-0 text-primary" />
-              <p>Determines point value in FCFA for virtual balance redemptions.</p>
-            </div>
-          </div>
-
-          {/* Referral configuration */}
-          <div className="border border-border bg-card rounded-xl shadow-sm overflow-hidden flex flex-col justify-between">
-            <div>
-              <div className="bg-secondary px-6 py-4 border-b border-border flex items-center gap-2.5">
-                <Share2 className="w-5 h-5 text-primary" />
-                <h3 className="font-semibold text-foreground">
-                  {t("referralSettingsTitle")}
-                </h3>
+              <div className="flex items-center justify-between p-3 rounded-lg bg-muted/30 border border-border">
+                <span className="text-sm font-medium text-foreground">
+                  Règles actives
+                </span>
+                <span className="text-xs font-bold text-green-700 bg-green-50 border border-green-200 px-2.5 py-0.5 rounded font-mono">
+                  {rules?.filter((r) => r.status === "ACTIVE").length ?? "—"}
+                </span>
               </div>
-
-              <form onSubmit={handleSaveReferral} className="p-6 space-y-4">
-                <div className="flex items-center gap-2.5">
-                  <input
-                    id="referralActive"
-                    type="checkbox"
-                    checked={referralActive}
-                    onChange={(e) => setReferralActive(e.target.checked)}
-                    className="w-4 h-4 text-primary focus:ring-primary border-border rounded cursor-pointer"
-                  />
-                  <label htmlFor="referralActive" className="text-sm font-semibold text-foreground select-none cursor-pointer">
-                    {t("referralActiveLabel")}
-                  </label>
-                </div>
-
-                <div className="space-y-3 pt-2">
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold uppercase text-muted-foreground tracking-wider ml-1">
-                      {t("referrerPointsLabel")}
-                    </label>
-                    <input
-                      type="number"
-                      value={referrerPoints}
-                      onChange={(e) => setReferrerPoints(Number(e.target.value))}
-                      className="w-full bg-background border border-border rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all shadow-sm"
-                    />
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold uppercase text-muted-foreground tracking-wider ml-1">
-                      {t("refereePointsLabel")}
-                    </label>
-                    <input
-                      type="number"
-                      value={refereePoints}
-                      onChange={(e) => setRefereePoints(Number(e.target.value))}
-                      className="w-full bg-background border border-border rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all shadow-sm"
-                    />
-                  </div>
-                </div>
-
-                <div className="flex justify-start">
-                  <button
-                    type="submit"
-                    className="inline-flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium hover:bg-primary/90 transition-all shadow-sm active:scale-95"
-                  >
-                    <Save className="w-4 h-4" />
-                    {t("saveReferralSettings")}
-                  </button>
-                </div>
-              </form>
             </div>
-
-            <div className="p-6 bg-muted/20 border-t border-border/60 text-xs text-muted-foreground flex gap-2">
+            <div className="p-4 bg-muted/20 border-t border-border text-xs text-muted-foreground flex gap-2">
               <Info className="w-4 h-4 flex-shrink-0 text-primary" />
-              <p>Configure referral program incentives for both referrers and referees.</p>
+              <p>
+                Les règles sont évaluées dans l&apos;ordre de priorité à chaque
+                événement reçu.
+              </p>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Rules Table */}
+      {/* ── Table des règles ─────────────────────────────────────────────────── */}
       <div className="border border-border bg-card rounded-xl shadow-sm overflow-hidden">
-        <div className="px-6 py-4 border-b border-border bg-secondary/30">
-          <h3 className="font-semibold text-foreground">{t("title")}</h3>
+        <div className="bg-secondary px-6 py-4 border-b border-border flex items-center gap-2.5">
+          <Code2 className="w-5 h-5 text-primary" />
+          <h3 className="font-semibold text-foreground">
+            Règles configurées ({rules?.length ?? 0})
+          </h3>
         </div>
 
-        <div className="overflow-x-auto">
-          {rules.length === 0 ? (
-            <div className="p-8 text-center text-muted-foreground text-sm">{t("noRules")}</div>
-          ) : (
+        {/* Loading */}
+        {isLoading && (
+          <div className="p-8 space-y-3">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="h-10 bg-muted rounded-lg animate-pulse" />
+            ))}
+          </div>
+        )}
+
+        {/* Erreur */}
+        {error && (
+          <div className="p-6 flex items-start gap-3 text-sm text-destructive bg-destructive/5 border-b border-destructive/10">
+            <AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+            <div>
+              <p className="font-semibold">Impossible de charger les règles</p>
+              <p className="text-xs mt-0.5 text-destructive/80">{error}</p>
+              <p className="text-xs mt-1 text-muted-foreground">
+                Vérifiez que le backend est démarré sur le port 8081.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Vide */}
+        {!isLoading && !error && rules?.length === 0 && (
+          <div className="p-8 text-center text-muted-foreground text-sm italic">
+            {t("noRules")}
+          </div>
+        )}
+
+        {/* Données */}
+        {!isLoading && !error && rules && rules.length > 0 && (
+          <div className="overflow-x-auto">
             <table className="w-full text-sm text-left">
               <thead className="text-xs text-muted-foreground uppercase bg-muted/30 border-b border-border">
                 <tr>
-                  <th className="px-6 py-4 font-semibold">{t("tableDescription")}</th>
-                  <th className="px-6 py-4 font-semibold">{t("tableMinAmount")} (FCFA)</th>
-                  <th className="px-6 py-4 font-semibold">{t("tableMaxAmount")} (FCFA)</th>
-                  <th className="px-6 py-4 font-semibold">{t("tablePoints")}</th>
-                  <th className="px-6 py-4 font-semibold">{t("tableInactivity")}</th>
-                  <th className="px-6 py-4 font-semibold">{t("tableAlwaysCredit")}</th>
-                  <th className="px-6 py-4 font-semibold text-right">{t("tableActions")}</th>
+                  <th className="px-6 py-4 font-semibold tracking-wider">
+                    Nom
+                  </th>
+                  <th className="px-6 py-4 font-semibold tracking-wider">
+                    Déclencheur
+                  </th>
+                  <th className="px-6 py-4 font-semibold tracking-wider">
+                    Effet
+                  </th>
+                  <th className="px-6 py-4 font-semibold tracking-wider">
+                    Priorité
+                  </th>
+                  <th className="px-6 py-4 font-semibold tracking-wider">
+                    Statut
+                  </th>
+                  <th className="px-6 py-4 font-semibold tracking-wider text-right">
+                    Actions
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {rules.map((rule) => (
-                  <tr key={rule.id} className="hover:bg-muted/10 transition-colors">
-                    <td className="px-6 py-4 font-medium text-foreground">{rule.description}</td>
-                    <td className="px-6 py-4 font-mono">{rule.amountMin.toLocaleString()}</td>
-                    <td className="px-6 py-4 font-mono">{rule.amountMax.toLocaleString()}</td>
-                    <td className="px-6 py-4 font-semibold text-primary">{rule.points}</td>
-                    <td className="px-6 py-4 text-muted-foreground">{rule.minDaysForIrregularClients} d</td>
+                {rules.map((rule, index) => (
+                  <tr
+                    key={rule.id}
+                    className={`hover:bg-secondary/50 transition-colors ${index % 2 === 0 ? "bg-background" : "bg-muted/10"
+                      }`}
+                  >
                     <td className="px-6 py-4">
-                      <span
-                        className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                          rule.alwaysCredit ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-muted text-muted-foreground border border-border"
-                        }`}
-                      >
-                        {rule.alwaysCredit ? t("yes") : t("no")}
+                      <p className="font-medium text-foreground">{rule.name}</p>
+                      {rule.description && (
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          {rule.description}
+                        </p>
+                      )}
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className="text-xs font-mono text-primary bg-primary/10 px-2 py-1 rounded-md">
+                        {rule.trigger?.eventType ?? "—"}
                       </span>
                     </td>
+                    <td className="px-6 py-4 font-semibold text-primary font-mono">
+                      +
+                      {rule.effects?.[0]?.value ?? "—"}{" "}
+                      <span className="text-xs font-normal text-muted-foreground">
+                        pts
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 font-mono text-muted-foreground">
+                      #{rule.priority}
+                    </td>
+                    <td className="px-6 py-4">{statusBadge(rule.status)}</td>
                     <td className="px-6 py-4 text-right">
-                      <button
-                        onClick={() => setRuleToDelete(rule)}
-                        className="inline-flex items-center gap-1.5 text-xs text-destructive hover:bg-destructive/10 px-2.5 py-1.5 rounded-md transition-colors"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                        {t("deleteButton")}
-                      </button>
+                      {rule.status !== "ACTIVE" && (
+                        <button
+                          onClick={() => handleActivate(rule.id)}
+                          disabled={activatingId === rule.id}
+                          className="inline-flex items-center gap-1.5 text-xs font-medium text-green-700 hover:bg-green-50 border border-green-200 px-2.5 py-1.5 rounded-md transition-colors disabled:opacity-50"
+                        >
+                          {activatingId === rule.id ? (
+                            <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                          ) : (
+                            <Zap className="w-3.5 h-3.5" />
+                          )}
+                          Activer
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
-          )}
-        </div>
-      </div>
-
-      {/* Delete Confirmation Modal */}
-      {ruleToDelete && (
-        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-card border border-border rounded-xl shadow-xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-150">
-            <div className="p-6 space-y-4">
-              <div className="flex items-center gap-3 text-destructive">
-                <div className="w-10 h-10 rounded-full bg-destructive/10 flex items-center justify-center">
-                  <AlertTriangle className="w-5 h-5 text-destructive" />
-                </div>
-                <h3 className="font-semibold text-lg">{t("confirmDeleteTitle")}</h3>
-              </div>
-              <p className="text-sm text-muted-foreground">
-                {t("confirmDeleteText", { name: ruleToDelete.description })}
-              </p>
-            </div>
-            <div className="bg-secondary/40 px-6 py-4 border-t border-border flex justify-end gap-3">
-              <button
-                onClick={() => setRuleToDelete(null)}
-                className="px-4 py-2 rounded-lg text-sm font-medium text-foreground bg-background border border-border hover:bg-secondary transition-all"
-              >
-                {t("cancel")}
-              </button>
-              <button
-                onClick={handleDeleteRule}
-                className="px-4 py-2 rounded-lg text-sm font-medium text-destructive-foreground bg-destructive hover:bg-destructive/90 transition-all shadow"
-              >
-                {t("deleteButton")}
-              </button>
-            </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }

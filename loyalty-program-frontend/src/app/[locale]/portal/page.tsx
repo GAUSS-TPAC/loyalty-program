@@ -1,436 +1,243 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Link } from "@/i18n/routing";
-import { 
-  Users, 
-  Coins, 
-  Share2, 
-  Sparkles, 
-  TrendingUp, 
-  ArrowUpRight, 
-  Activity, 
-  ArrowRight, 
-  UserCheck, 
-  ShoppingBag, 
-  Clock, 
-  CheckCircle2, 
+import {
+  Coins,
+  Target,
+  Activity,
+  ArrowUpRight,
+  ArrowDownRight,
   ShieldCheck,
-  Settings
+  Zap,
+  LayoutDashboard,
+  RefreshCw,
+  ChevronRight
 } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { ResponsiveContainer, AreaChart, Area, XAxis, Tooltip } from "recharts";
+import { useWallet, useRules, useBackendHealth } from "@/hooks/useBackend";
 
-interface Member {
-  id: string;
-  name: string;
-  email: string;
-  balance: number;
-  status: string;
-  referrals: string[];
-  referredBy?: string | null;
-}
-
-interface ActivityItem {
-  id: string;
-  type: "signup" | "purchase" | "referral" | "system";
-  title: string;
-  description: string;
-  timestamp: string;
-  points?: number;
-  memberName?: string;
-  avatarInitials?: string;
-}
-
-const DEFAULT_MEMBERS: Member[] = [
-  { id: "usr_9921", name: "Amandine Dubois", email: "amandine@example.com", balance: 5400, status: "ACTIVE", referrals: [] },
-  { id: "usr_9922", name: "Jean Dupont", email: "jean.dupont@example.com", balance: 1200, status: "PENDING_KYC", referrals: [] },
-  { id: "usr_9923", name: "Alice Martin", email: "alice.martin@example.com", balance: 850, status: "ACTIVE", referrals: [] },
-  { id: "usr_9924", name: "Paul Lambert", email: "paul.lambert@example.com", balance: 0, status: "FROZEN", referrals: [] }
-];
-
-export default function OverviewDashboard() {
+export default function DashboardPage() {
   const t = useTranslations("Dashboard");
 
-  // Client side states
-  const [members, setMembers] = useState<Member[]>([]);
-  const [pointValue, setPointValue] = useState<number>(100);
-  const [activeRulesCount, setActiveRulesCount] = useState<number>(0);
-  const [activities, setActivities] = useState<ActivityItem[]>([]);
-  const [isLoaded, setIsLoaded] = useState(false);
+  // Real data hooks
+  const { data: wallet, isLoading: walletLoading, refetch: refetchWallet } = useWallet();
+  const { data: rules, isLoading: rulesLoading, refetch: refetchRules } = useRules();
+  const { data: health, isLoading: healthLoading, refetch: refetchHealth } = useBackendHealth();
 
-  useEffect(() => {
-    // Load members
-    const savedMembers = localStorage.getItem("loyalty_members");
-    let currentMembers = DEFAULT_MEMBERS;
-    if (savedMembers) {
-      try {
-        currentMembers = JSON.parse(savedMembers);
-      } catch (e) {
-        currentMembers = DEFAULT_MEMBERS;
-      }
-    } else {
-      localStorage.setItem("loyalty_members", JSON.stringify(DEFAULT_MEMBERS));
+  const handleRefresh = () => {
+    refetchWallet();
+    refetchRules();
+    refetchHealth();
+  };
+
+  // Metrics calculation
+  const activeRulesCount = rules?.filter(r => r.status === 'ACTIVE').length ?? 0;
+  const isSystemHealthy = health?.status === 'UP';
+
+  const stats = [
+    {
+      title: "Solde Global Wallet",
+      value: wallet ? `${wallet.balance.toLocaleString()} ${wallet.currencyCode}` : "—",
+      change: "+12.5%",
+      isPositive: true,
+      icon: Coins,
+      loading: walletLoading
+    },
+    {
+      title: "Règles Actives",
+      value: activeRulesCount.toString(),
+      change: `sur ${rules?.length ?? 0} totales`,
+      isPositive: true,
+      icon: Zap,
+      loading: rulesLoading
+    },
+    {
+      title: "Statut Système",
+      value: isSystemHealthy ? "Opérationnel" : "Alerte",
+      change: isSystemHealthy ? "Flux optimal" : "Vérifiez logs",
+      isPositive: isSystemHealthy,
+      icon: Activity,
+      loading: healthLoading
+    },
+    {
+      title: "Taux d'Engagement",
+      value: "100%",
+      change: "+2.1%",
+      isPositive: true,
+      icon: Target,
+      loading: false
     }
-    setMembers(currentMembers);
-
-    // Load active rules count
-    const savedRules = localStorage.getItem("loyalty_rules");
-    if (savedRules) {
-      try {
-        const rules = JSON.parse(savedRules);
-        setActiveRulesCount(rules.length);
-      } catch (e) {
-        setActiveRulesCount(2);
-      }
-    } else {
-      setActiveRulesCount(2);
-    }
-
-    // Load point value
-    const savedPointValue = localStorage.getItem("loyalty_point_value");
-    if (savedPointValue) {
-      const parsed = parseFloat(savedPointValue);
-      if (!isNaN(parsed)) setPointValue(parsed);
-    }
-
-    // Generate recent dynamic activities based on loaded members database
-    const recentLogs: ActivityItem[] = [];
-    if (currentMembers.length > 0) {
-      // 1. Transaction event from top member
-      const topMember = currentMembers[0];
-      recentLogs.push({
-        id: "act_1",
-        type: "purchase",
-        title: "Purchase Bonus Issued",
-        description: `Awarded transaction points to ${topMember.name}`,
-        timestamp: "5m ago",
-        points: 120,
-        memberName: topMember.name,
-        avatarInitials: topMember.name.split(" ").map(n => n[0]).join("")
-      });
-
-      // 2. Referral event if any, or general signup
-      const referredMember = currentMembers.find(m => m.referredBy);
-      if (referredMember) {
-        const referrer = currentMembers.find(m => m.id === referredMember.referredBy) || topMember;
-        recentLogs.push({
-          id: "act_2",
-          type: "referral",
-          title: "Referral Reward Credited",
-          description: `${referredMember.name} joined via referral code from ${referrer.name}`,
-          timestamp: "45m ago",
-          points: 100,
-          memberName: referredMember.name,
-          avatarInitials: referredMember.name.split(" ").map(n => n[0]).join("")
-        });
-      } else {
-        const secondaryMember = currentMembers[1] || topMember;
-        recentLogs.push({
-          id: "act_2",
-          type: "signup",
-          title: "Welcome Bonus Credited",
-          description: `New registration welcome reward for ${secondaryMember.name}`,
-          timestamp: "1h ago",
-          points: 50,
-          memberName: secondaryMember.name,
-          avatarInitials: secondaryMember.name.split(" ").map(n => n[0]).join("")
-        });
-      }
-
-      // 3. System checks
-      recentLogs.push({
-        id: "act_3",
-        type: "system",
-        title: "Bonification Campaign Synced",
-        description: "Rule evaluation parameters updated successfully.",
-        timestamp: "3h ago"
-      });
-
-      // 4. Wallet adjustments
-      const lastMember = currentMembers[currentMembers.length - 1];
-      recentLogs.push({
-        id: "act_4",
-        type: "signup",
-        title: "Member Profile Created",
-        description: `Wallet status initialized for ${lastMember.name}`,
-        timestamp: "5h ago",
-        memberName: lastMember.name,
-        avatarInitials: lastMember.name.split(" ").map(n => n[0]).join("")
-      });
-    }
-    setActivities(recentLogs);
-
-    setIsLoaded(true);
-  }, []);
-
-  // Compute metrics
-  const totalMembersCount = members.length;
-  const totalIssuedPoints = members.reduce((sum, m) => sum + m.balance, 0);
-  const referralCount = members.filter((m) => m.referredBy).length;
-
-
-
-  // Points history for Recharts Area chart
-  const pointsHistoryData = [
-    { day: "Mon", points: Math.round(totalIssuedPoints * 0.72) },
-    { day: "Tue", points: Math.round(totalIssuedPoints * 0.78) },
-    { day: "Wed", points: Math.round(totalIssuedPoints * 0.85) },
-    { day: "Thu", points: Math.round(totalIssuedPoints * 0.91) },
-    { day: "Fri", points: totalIssuedPoints },
   ];
-
-  if (!isLoaded) {
-    return (
-      <div className="space-y-6 animate-pulse">
-        <div className="h-32 bg-muted rounded-xl w-full" />
-        <div className="grid grid-cols-4 gap-6">
-          <div className="h-24 bg-muted rounded-xl" />
-          <div className="h-24 bg-muted rounded-xl" />
-          <div className="h-24 bg-muted rounded-xl" />
-          <div className="h-24 bg-muted rounded-xl" />
-        </div>
-        <div className="h-64 bg-muted rounded-xl w-full" />
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-8">
-      
-      {/* Hero Welcome Banner */}
-      <div className="relative overflow-hidden rounded-2xl border border-border bg-gradient-to-r from-primary/10 via-primary/5 to-card p-6 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6 group hover:shadow-md transition-all duration-300">
-        <div className="absolute top-0 right-0 w-[300px] h-[300px] bg-primary/5 rounded-full blur-3xl pointer-events-none -mr-32 -mt-32" />
-        <div className="space-y-2 z-10">
-          <div className="flex items-center gap-2.5">
-            <span className="relative flex h-2.5 w-2.5">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
-            </span>
-            <span className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">{t("systemStatus")}: {t("connected")}</span>
-          </div>
-          <h2 className="text-2xl font-bold tracking-tight text-foreground">{t("heroTitle")}</h2>
-          <p className="text-sm text-muted-foreground max-w-2xl">{t("heroSubtitle")}</p>
+      {/* Welcome Header */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="space-y-1">
+          <h1 className="text-3xl font-semibold tracking-tight text-foreground">
+            <span className="text-primary">{t("welcome")}</span>, Admin
+          </h1>
+          <p className="text-muted-foreground text-sm font-sans italic">
+            Dashboard consolidé du programme de fidélité.
+          </p>
         </div>
-        <div className="flex gap-3 z-10 shrink-0">
-          <Link
-            href="/portal/rules"
-            className="inline-flex items-center gap-2 text-xs font-semibold bg-primary text-primary-foreground hover:bg-primary/95 px-4.5 py-2.5 rounded-lg shadow-sm hover:shadow transition-all active:scale-[0.98]"
+
+        <div className="flex items-center gap-3">
+          <button
+            onClick={handleRefresh}
+            className="p-2 text-muted-foreground hover:bg-secondary rounded-lg transition-colors border border-border"
+            title="Rafraîchir les données"
           >
-            <Settings className="w-3.5 h-3.5" />
-            {t("configureRules")}
-          </Link>
-          <Link
-            href="/portal/members"
-            className="inline-flex items-center gap-2 text-xs font-semibold bg-background border border-border hover:bg-secondary text-foreground px-4.5 py-2.5 rounded-lg shadow-sm hover:shadow transition-all active:scale-[0.98]"
-          >
-            <Users className="w-3.5 h-3.5 text-muted-foreground" />
-            {t("viewMembers")}
-          </Link>
-        </div>
-      </div>
-
-      {/* KPI Cards Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        {/* Card 1: Total Members */}
-        <div className="border border-border bg-card p-6 rounded-xl shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 flex items-center justify-between group">
-          <div className="space-y-2">
-            <p className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">{t("totalMembers")}</p>
-            <p className="text-3xl font-bold text-foreground font-mono">{totalMembersCount}</p>
-            <div className="flex items-center gap-1 text-[11px] font-semibold text-emerald-600">
-              <ArrowUpRight className="w-3 h-3" />
-              <span>+12.4% this week</span>
-            </div>
-          </div>
-          <div className="w-12 h-12 rounded-xl bg-secondary flex items-center justify-center border border-border group-hover:scale-105 transition-all">
-            <Users className="w-5 h-5 text-primary" />
-          </div>
-        </div>
-
-        {/* Card 2: Total Issued Points */}
-        <div className="border border-border bg-card p-6 rounded-xl shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 flex items-center justify-between group">
-          <div className="space-y-2">
-            <p className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">{t("totalPoints")}</p>
-            <p className="text-3xl font-bold text-foreground font-mono">{totalIssuedPoints.toLocaleString()} <span className="text-sm font-semibold">CR</span></p>
-            <div className="flex items-center gap-1 text-[11px] font-semibold text-emerald-600">
-              <ArrowUpRight className="w-3 h-3" />
-              <span>+8.2% vs yesterday</span>
-            </div>
-          </div>
-          <div className="w-12 h-12 rounded-xl bg-secondary flex items-center justify-center border border-border group-hover:scale-105 transition-all">
-            <Sparkles className="w-5 h-5 text-primary" />
-          </div>
-        </div>
-
-        {/* Card 3: Referral Rate */}
-        <div className="border border-border bg-card p-6 rounded-xl shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 flex items-center justify-between group">
-          <div className="space-y-2">
-            <p className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">{t("referralRate")}</p>
-            <p className="text-3xl font-bold text-foreground font-mono">{referralCount}</p>
-            <div className="text-[11px] text-muted-foreground font-medium">
-              <span>{(totalMembersCount > 0 ? (referralCount / totalMembersCount * 100).toFixed(0) : 0)}% of members active</span>
-            </div>
-          </div>
-          <div className="w-12 h-12 rounded-xl bg-secondary flex items-center justify-center border border-border group-hover:scale-105 transition-all">
-            <Share2 className="w-5 h-5 text-primary" />
-          </div>
-        </div>
-
-        {/* Card 4: Point Value */}
-        <div className="border border-border bg-card p-6 rounded-xl shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 flex items-center justify-between group">
-          <div className="space-y-2">
-            <p className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">{t("pointValue")}</p>
-            <p className="text-3xl font-bold text-foreground font-mono">{pointValue.toFixed(2)} <span className="text-sm font-semibold text-muted-foreground">FCFA</span></p>
-            <div className="text-[11px] text-muted-foreground font-medium">
-              <span>Conversion exchange value</span>
-            </div>
-          </div>
-          <div className="w-12 h-12 rounded-xl bg-secondary flex items-center justify-center border border-border group-hover:scale-105 transition-all">
-            <Coins className="w-5 h-5 text-primary" />
+            <RefreshCw className={`w-4 h-4 ${walletLoading || rulesLoading || healthLoading ? 'animate-spin' : ''}`} />
+          </button>
+          <div className={`px-4 py-2 rounded-full flex items-center gap-2.5 border text-xs font-bold tracking-tight shadow-sm ${isSystemHealthy ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-rose-50 border-rose-200 text-rose-700'
+            }`}>
+            <div className={`w-2.5 h-2.5 rounded-full ${isSystemHealthy ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`} />
+            BACKEND : {isSystemHealthy ? 'ONLINE' : 'OFFLINE'}
           </div>
         </div>
       </div>
 
-      {/* Visual Analytics Chart */}
-      <div className="border border-border bg-card rounded-xl p-6 shadow-sm flex flex-col justify-between">
-        <div className="mb-4">
-          <h3 className="font-semibold text-foreground">{t("pointsDistribution")}</h3>
-          <p className="text-xs text-muted-foreground">{t("pointsOverTime")}</p>
-        </div>
-        <div className="h-64 w-full min-w-0 relative">
-          <ResponsiveContainer width="100%" height="100%" minWidth={0}>
-            <AreaChart data={pointsHistoryData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-              <defs>
-                <linearGradient id="colorPoints" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="var(--color-primary, #6366f1)" stopOpacity={0.2} />
-                  <stop offset="95%" stopColor="var(--color-primary, #6366f1)" stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <XAxis dataKey="day" stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
-              <Tooltip
-                contentStyle={{ background: "var(--background-card, #ffffff)", border: "1px solid var(--color-border, #e2e8f0)", borderRadius: "8px" }}
-                labelClassName="font-semibold text-foreground text-xs"
-                itemStyle={{ fontSize: "12px", color: "var(--color-primary, #6366f1)" }}
-              />
-              <Area type="monotone" dataKey="points" stroke="var(--color-primary, #6366f1)" strokeWidth={2} fillOpacity={1} fill="url(#colorPoints)" />
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {stats.map((stat, i) => (
+          <div key={i} className="bg-card border border-border rounded-2xl p-6 shadow-sm hover:shadow-md transition-all group relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-24 h-24 bg-primary/5 rounded-full -mr-12 -mt-12 transition-transform group-hover:scale-150 duration-500" />
+
+            <div className="flex items-center justify-between mb-4">
+              <div className="p-3 bg-secondary rounded-xl group-hover:bg-primary/20 transition-colors relative z-10">
+                <stat.icon className="w-5 h-5 text-primary" />
+              </div>
+              {stat.loading ? (
+                <div className="h-4 w-12 bg-muted animate-pulse rounded" />
+              ) : (
+                <div className={`flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider ${stat.isPositive ? 'text-emerald-600' : 'text-rose-600'}`}>
+                  {stat.isPositive ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
+                  {stat.change}
+                </div>
+              )}
+            </div>
+            <div className="space-y-1 relative z-10">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">{stat.title}</p>
+              {stat.loading ? (
+                <div className="h-8 w-32 bg-muted animate-pulse rounded mt-1" />
+              ) : (
+                <p className="text-2xl font-bold tracking-tight text-foreground font-mono">{stat.value}</p>
+              )}
+            </div>
+          </div>
+        ))}
       </div>
 
-      {/* Bottom Section: Activities & Insights */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
-        {/* Dynamic Activity Feed */}
-        <div className="lg:col-span-2 border border-border bg-card rounded-xl shadow-sm flex flex-col overflow-hidden">
-          <div className="bg-secondary px-6 py-4 border-b border-border flex items-center gap-2.5">
-            <Activity className="w-5 h-5 text-primary" />
+      {/* Main Content Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+
+        {/* System Health Summary */}
+        <div className="lg:col-span-2 border border-border bg-card rounded-2xl shadow-sm overflow-hidden flex flex-col">
+          <div className="bg-secondary/50 px-6 py-4 border-b border-border flex items-center justify-between">
+            <div className="flex items-center gap-3 font-bold text-foreground">
+              <Activity className="w-5 h-5 text-primary" />
+              Services Infrastructure
+            </div>
+            <span className="text-[10px] font-bold bg-primary/10 text-primary px-2 py-0.5 rounded border border-primary/20">AWS CAMEROUN</span>
+          </div>
+
+          <div className="p-8 space-y-8 flex-1">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
+              <div className="space-y-5">
+                <div className="space-y-2.5">
+                  <div className="flex justify-between items-center text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                    <span>R2DBC POOL</span>
+                    <span className="text-emerald-600 font-mono">OK</span>
+                  </div>
+                  <div className="h-2 bg-secondary rounded-full overflow-hidden">
+                    <div className="h-full bg-emerald-500 w-[100%] transition-all duration-1000" />
+                  </div>
+                </div>
+                <div className="space-y-2.5">
+                  <div className="flex justify-between items-center text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                    <span>Kafka Brokers</span>
+                    <span className="text-primary font-mono tracking-normal">CONNECTED</span>
+                  </div>
+                  <div className="h-2 bg-secondary rounded-full overflow-hidden">
+                    <div className="h-full bg-primary w-[100%] transition-all duration-1000" />
+                  </div>
+                </div>
+                <div className="space-y-2.5">
+                  <div className="flex justify-between items-center text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                    <span>Redis Sentinel</span>
+                    <span className="text-emerald-600 font-mono">ACTIVE</span>
+                  </div>
+                  <div className="h-2 bg-secondary rounded-full overflow-hidden">
+                    <div className="h-full bg-emerald-500 w-[100%] transition-all duration-1000" />
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-muted/30 rounded-2xl p-6 border border-border flex flex-col justify-center space-y-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 bg-card rounded-xl shadow-sm border border-border">
+                    <ShieldCheck className="w-6 h-6 text-emerald-600" />
+                  </div>
+                  <div>
+                    <p className="font-bold text-sm">Protection Idempotente</p>
+                    <p className="text-[11px] text-muted-foreground">Redis Cache actif pour éviter les doubles transactions.</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 bg-card rounded-xl shadow-sm border border-border">
+                    <LayoutDashboard className="w-6 h-6 text-primary" />
+                  </div>
+                  <div>
+                    <p className="font-bold text-sm">Gestion des Tenances</p>
+                    <p className="text-[11px] text-muted-foreground">Isolation stricte des données par TenantContextHolder.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="px-6 py-4 bg-muted/20 border-t border-border flex justify-between items-center">
+            <span className="text-[10px] text-muted-foreground font-mono uppercase tracking-widest">Version v1.2.4-stable</span>
+            <button className="text-[10px] uppercase font-bold text-primary hover:underline flex items-center gap-1.5">
+              Consulter Actuator <ChevronRight className="w-3 h-3" />
+            </button>
+          </div>
+        </div>
+
+        {/* Quick Actions / Moteur */}
+        <div className="space-y-8">
+          <div className="bg-primary text-primary-foreground rounded-2xl p-8 shadow-xl shadow-primary/20 relative overflow-hidden flex flex-col justify-between group">
+            <div className="absolute -bottom-8 -right-8 opacity-10 group-hover:scale-110 transition-transform duration-700">
+              <Zap className="w-48 h-48 stroke-[1]" />
+            </div>
+
+            <div className="space-y-4 relative z-10">
+              <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
+                <Zap className="w-6 h-6 fill-white" />
+              </div>
+              <div className="space-y-2">
+                <h3 className="text-xl font-bold tracking-tight">Moteur de Règles</h3>
+                <p className="text-sm opacity-80 leading-relaxed">
+                  Le moteur de fidélité est prêt à transformer vos transactions en récompenses.
+                </p>
+              </div>
+            </div>
+
+            <div className="pt-8 relative z-10">
+              <button className="w-full bg-white text-primary py-3 rounded-xl font-bold text-sm shadow-lg hover:shadow-xl transition-all active:scale-95">
+                Lancer un test Event
+              </button>
+            </div>
+          </div>
+
+          <div className="border border-border bg-card rounded-2xl p-6 shadow-sm flex items-center gap-4">
+            <div className="w-3 h-3 rounded-full bg-emerald-500 animate-pulse ring-4 ring-emerald-500/20" />
             <div>
-              <h3 className="font-semibold text-foreground">{t("activityTitle")}</h3>
-              <p className="text-xs text-muted-foreground">{t("activitySubtitle")}</p>
+              <p className="text-xs font-bold text-foreground">Worker Kafka</p>
+              <p className="text-[10px] text-muted-foreground">En attente d&apos;événements de bonification.</p>
             </div>
-          </div>
-          
-          <div className="divide-y divide-border flex-1">
-            {activities.length === 0 ? (
-              <div className="p-8 text-center text-muted-foreground text-sm italic">
-                No recent campaign activity.
-              </div>
-            ) : (
-              activities.map((act) => (
-                <div key={act.id} className="px-6 py-4 flex items-center justify-between hover:bg-muted/10 transition-colors group">
-                  <div className="flex items-center gap-3.5">
-                    {act.avatarInitials ? (
-                      <div className="w-9 h-9 rounded-full bg-secondary border border-border flex items-center justify-center text-xs font-semibold text-primary">
-                        {act.avatarInitials}
-                      </div>
-                    ) : (
-                      <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-primary">
-                        <Activity className="w-4 h-4" />
-                      </div>
-                    )}
-                    
-                    <div className="space-y-0.5">
-                      <p className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors">{act.title}</p>
-                      <p className="text-xs text-muted-foreground">{act.description}</p>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center gap-3">
-                    {act.points !== undefined && (
-                      <span className="inline-flex items-center text-xs font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100">
-                        +{act.points} CR
-                      </span>
-                    )}
-                    <span className="text-xs text-muted-foreground flex items-center gap-1">
-                      <Clock className="w-3 h-3" />
-                      {act.timestamp}
-                    </span>
-                  </div>
-                </div>
-              ))
-            )}
           </div>
         </div>
-
-        {/* Campaign Program Health & Fast Links */}
-        <div className="border border-border bg-card rounded-xl shadow-sm overflow-hidden flex flex-col justify-between">
-          <div>
-            <div className="bg-secondary px-6 py-4 border-b border-border flex items-center gap-2.5">
-              <ShieldCheck className="w-5 h-5 text-primary" />
-              <div>
-                <h3 className="font-semibold text-foreground">{t("healthCheckTitle")}</h3>
-                <p className="text-xs text-muted-foreground">{t("healthCheckSubtitle")}</p>
-              </div>
-            </div>
-
-            <div className="p-6 space-y-4">
-              {/* Check 1: Rule Engine status */}
-              <div className="flex items-center justify-between p-3 rounded-lg border border-border bg-muted/20">
-                <div className="flex items-center gap-2.5">
-                  <CheckCircle2 className="w-4.5 h-4.5 text-emerald-500" />
-                  <span className="text-sm font-medium text-foreground">Rule Engine</span>
-                </div>
-                <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100">
-                  Active
-                </span>
-              </div>
-
-              {/* Check 2: Active rules count */}
-              <div className="flex items-center justify-between p-3 rounded-lg border border-border bg-muted/20">
-                <div className="flex items-center gap-2.5">
-                  <CheckCircle2 className="w-4.5 h-4.5 text-emerald-500" />
-                  <span className="text-sm font-medium text-foreground">{t("activeRules")}</span>
-                </div>
-                <span className="text-xs font-semibold text-primary bg-secondary px-2.5 py-0.5 rounded border border-border font-mono">
-                  {activeRulesCount} loaded
-                </span>
-              </div>
-
-              {/* Check 3: Local Storage Database */}
-              <div className="flex items-center justify-between p-3 rounded-lg border border-border bg-muted/20">
-                <div className="flex items-center gap-2.5">
-                  <CheckCircle2 className="w-4.5 h-4.5 text-emerald-500" />
-                  <span className="text-sm font-medium text-foreground">Local Database</span>
-                </div>
-                <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100">
-                  Operational
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <div className="p-6 bg-muted/25 border-t border-border flex items-center justify-between">
-            <span className="text-xs text-muted-foreground">Loyalty Campaign Core</span>
-            <Link 
-              href="/portal/rules" 
-              className="text-xs font-bold text-primary flex items-center gap-1 hover:underline"
-            >
-              Configure settings <ArrowRight className="w-3.5 h-3.5" />
-            </Link>
-          </div>
-        </div>
-
       </div>
     </div>
   );

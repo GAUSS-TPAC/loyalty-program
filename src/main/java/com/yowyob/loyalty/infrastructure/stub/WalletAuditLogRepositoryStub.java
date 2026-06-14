@@ -9,7 +9,7 @@ import java.util.Map;
 import java.util.UUID;
 
 @Component
-@Profile({"test", "stub"})
+@Profile({"test", "stub", "dev", "default"})
 public class WalletAuditLogRepositoryStub implements WalletAuditLogRepository {
 
     @Override
