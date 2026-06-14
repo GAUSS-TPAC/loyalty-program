@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter, Link } from "@/i18n/routing";
 import { usePathname } from "next/navigation";
-import { Terminal, Settings, LogOut, Code2, Cpu, Wallet, Users, LayoutDashboard, Menu, X } from "lucide-react";
+import { Terminal, Settings, LogOut, Code2, Cpu, Wallet, Users, LayoutDashboard, Menu, X, Zap, Gift } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 
@@ -44,6 +44,8 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
     { name: tNav("establishment"), href: "/portal/establishment", icon: Settings },
     { name: tNav("walletPolicy"), href: "/portal/wallet/config", icon: Wallet },
     { name: tNav("membersDirectory"), href: "/portal/members", icon: Users },
+    { name: "Événements", href: "/portal/events", icon: Zap },
+    { name: "Bonification", href: "/portal/bonification", icon: Gift },
     { name: tNav("eventLogs"), href: "/portal/logs", icon: Terminal },
   ];
 
@@ -51,16 +53,15 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
     <div className="flex min-h-screen bg-background text-foreground font-sans selection:bg-primary selection:text-white">
       {/* Sidebar Overlay on mobile */}
       {isMobileOpen && (
-        <div 
-          className="fixed inset-0 bg-background/60 backdrop-blur-sm z-20 md:hidden" 
-          onClick={() => setIsMobileOpen(false)} 
+        <div
+          className="fixed inset-0 bg-background/60 backdrop-blur-sm z-20 md:hidden"
+          onClick={() => setIsMobileOpen(false)}
         />
       )}
 
       {/* Sidebar drawer */}
-      <aside className={`fixed inset-y-0 left-0 w-64 border-r border-border bg-card flex flex-col shadow-sm z-35 transform transition-transform duration-300 md:translate-x-0 md:static ${
-        isMobileOpen ? "translate-x-0" : "-translate-x-full"
-      }`}>
+      <aside className={`fixed inset-y-0 left-0 w-64 border-r border-border bg-card flex flex-col shadow-sm z-35 transform transition-transform duration-300 md:translate-x-0 md:static ${isMobileOpen ? "translate-x-0" : "-translate-x-full"
+        }`}>
         <div className="p-6 border-b border-border flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-lg bg-secondary flex items-center justify-center border border-border">
@@ -76,7 +77,7 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
             <X className="w-4.5 h-4.5" />
           </button>
         </div>
-        
+
         <div className="p-6 pt-4 pb-4 border-b border-border">
           <div className="text-xs text-muted-foreground truncate bg-muted px-2 py-1 rounded-md border border-border" title={apiKey || ""}>
             {tSide("key")}{apiKey ? `${apiKey.substring(0, 14)}...` : ""}
@@ -93,11 +94,10 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
               <Link
                 key={item.href}
                 href={item.href}
-                className={`flex items-center gap-3 px-3 py-2.5 text-sm transition-all rounded-md ${
-                  isActive
+                className={`flex items-center gap-3 px-3 py-2.5 text-sm transition-all rounded-md ${isActive
                     ? "bg-primary text-primary-foreground font-medium shadow-sm"
                     : "text-muted-foreground hover:bg-secondary hover:text-foreground"
-                }`}
+                  }`}
               >
                 <item.icon className={`w-4 h-4 ${isActive ? "text-primary-foreground" : ""}`} />
                 {item.name}

@@ -55,7 +55,7 @@ spring:
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
       properties:
-        spring.json.trusted.packages: com.yowyob.loyaulty.program.domain.wallet.event
+        spring.json.trusted.packages: com.yowyob.loyalty.domain.wallet.event
     topics:
       wallet-credited: wallet.credited
       wallet-debited: wallet.debited
@@ -109,7 +109,7 @@ springdoc:
 logging:
   level:
     root: INFO
-    com.yowyob.loyaulty: DEBUG
+    com.yowyob.loyalty: DEBUG
     org.springframework.r2dbc: INFO
     org.flywaydb: INFO
   pattern:
