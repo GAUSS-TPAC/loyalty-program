@@ -20,7 +20,7 @@ public class EffectExecutionContext {
 
     public record PointsOperation(UserId memberId, long amount, String type, UUID ruleId) {}
     public record WalletOperation(UserId memberId, BigDecimal amount, String source) {}
-    public record RewardOperation(UserId memberId, String rewardId, UUID ruleId) {}
+    public record RewardOperation(UserId memberId, String rewardId, UUID ruleId, double amount) {}
     public record CounterOperation(String counterKey, String operationType, long delta) {}
     public record NotificationOperation(UserId memberId, String template, Map<String, Object> params) {}
     public record TierOperation(UserId memberId, TierLevel newLevel) {}
@@ -33,8 +33,8 @@ public class EffectExecutionContext {
         pendingWalletOperations.add(new WalletOperation(memberId, amount, source));
     }
 
-    public void addRewardGrant(UserId memberId, String rewardId, UUID ruleId) {
-        pendingRewardOperations.add(new RewardOperation(memberId, rewardId, ruleId));
+    public void addRewardGrant(UserId memberId, String rewardId, UUID ruleId, double amount) {
+        pendingRewardOperations.add(new RewardOperation(memberId, rewardId, ruleId, amount));
     }
 
     public void addCounterIncrement(String counterKey, long delta) {

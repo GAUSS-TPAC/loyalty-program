@@ -23,7 +23,11 @@ public class GrantRewardExecutor implements EffectExecutor {
             return new AppliedEffect(effect.type().name(), ruleId.toString(), ruleName, Map.of("error", "Missing reward_id"));
         }
 
-        executionContext.addRewardGrant(context.event().memberId(), rewardId, ruleId);
+        double amount = effect.getParamAsBigDecimal("amount")
+                .map(java.math.BigDecimal::doubleValue)
+                .orElse(0.0);
+
+        executionContext.addRewardGrant(context.event().memberId(), rewardId, ruleId, amount);
 
         return new AppliedEffect(effect.type().name(), ruleId.toString(), ruleName, Map.of("reward_id", rewardId));
     }

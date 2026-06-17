@@ -23,6 +23,7 @@ import com.yowyob.loyalty.domain.shared.model.TenantId;
 import com.yowyob.loyalty.domain.shared.model.UserId;
 
 import java.time.Instant;
+import com.yowyob.loyalty.domain.loyalty.port.out.RewardGrantPort;
 import com.yowyob.loyalty.domain.loyalty.service.executor.EffectExecutionContext;
 import com.yowyob.loyalty.domain.wallet.port.in.CreditWalletUseCase;
 
@@ -46,6 +47,7 @@ public class LoyaltyDomainService implements ProcessEventUseCase, CreateRuleUseC
     private final RuleCachePort ruleCache;
     private final LoyaltyEventPublisherPort eventPublisher;
     private final CreditWalletUseCase creditWalletUseCase;
+    private final RewardGrantPort rewardGrantPort;
 
     public LoyaltyDomainService(RuleEngine ruleEngine,
                                 CounterService counterService,
@@ -58,7 +60,8 @@ public class LoyaltyDomainService implements ProcessEventUseCase, CreateRuleUseC
                                 TierPolicyRepository tierPolicyRepo,
                                 RuleCachePort ruleCache,
                                 LoyaltyEventPublisherPort eventPublisher,
-                                CreditWalletUseCase creditWalletUseCase) {
+                                CreditWalletUseCase creditWalletUseCase,
+                                RewardGrantPort rewardGrantPort) {
         this.ruleEngine = ruleEngine;
         this.counterService = counterService;
         this.tierService = tierService;
@@ -71,6 +74,7 @@ public class LoyaltyDomainService implements ProcessEventUseCase, CreateRuleUseC
         this.ruleCache = ruleCache;
         this.eventPublisher = eventPublisher;
         this.creditWalletUseCase = creditWalletUseCase;
+        this.rewardGrantPort = rewardGrantPort;
     }
 
     @Override
@@ -151,6 +155,13 @@ public class LoyaltyDomainService implements ProcessEventUseCase, CreateRuleUseC
                         event.idempotencyKey() != null ? event.idempotencyKey() + "-wallet" : UUID.randomUUID().toString(),
                         event.idempotencyKey() != null ? event.idempotencyKey() + "-wallet" : UUID.randomUUID().toString()
                 ).subscribe();
+            }
+        }
+
+        // Apply Reward Grants (bonification partner)
+        for (EffectExecutionContext.RewardOperation op : effectContext.getPendingRewardOperations()) {
+            if (rewardGrantPort != null) {
+                rewardGrantPort.grantReward(event.tenantId(), op.memberId(), op.rewardId(), op.amount());
             }
         }
 
