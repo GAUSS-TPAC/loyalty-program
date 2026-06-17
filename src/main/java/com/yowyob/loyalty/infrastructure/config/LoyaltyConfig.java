@@ -9,6 +9,7 @@ import com.yowyob.loyalty.domain.wallet.port.in.CreditWalletUseCase;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.lang.Nullable;
 
 import java.util.List;
 
@@ -67,7 +68,8 @@ public class LoyaltyConfig {
             TierPolicyRepository tierPolicyRepo,
             RuleCachePort ruleCache,
             LoyaltyEventPublisherPort eventPublisher,
-            @Qualifier("creditWalletHandler") CreditWalletUseCase creditWalletUseCase
+            @Qualifier("creditWalletHandler") CreditWalletUseCase creditWalletUseCase,
+            @Nullable RewardGrantPort rewardGrantPort
     ) {
         return new LoyaltyDomainService(
                 ruleEngine,
@@ -81,7 +83,8 @@ public class LoyaltyConfig {
                 tierPolicyRepo,
                 ruleCache,
                 eventPublisher,
-                creditWalletUseCase
+                creditWalletUseCase,
+                rewardGrantPort
         );
     }
 

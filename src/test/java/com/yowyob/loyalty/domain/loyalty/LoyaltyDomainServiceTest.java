@@ -42,7 +42,7 @@ class LoyaltyDomainServiceTest {
         service = new LoyaltyDomainService(engine, new CounterService(), new TierCalculationService(),
                 ruleRepo, pointsRepo, new InMemoryPointsTransactionRepository(), counterRepo,
                 new InMemoryMemberTierRepository(), new InMemoryTierPolicyRepository(),
-                new InMemoryRuleCache(), eventPublisher, null);
+                new InMemoryRuleCache(), eventPublisher, null, null);
     }
 
     @Test
@@ -128,7 +128,7 @@ class LoyaltyDomainServiceTest {
                 new CounterService(), new TierCalculationService(),
                 ruleRepo, pointsRepo, new InMemoryPointsTransactionRepository(), counterRepo,
                 tierRepository, new InMemoryTierPolicyRepository(),
-                new InMemoryRuleCache(), eventPublisher, null);
+                new InMemoryRuleCache(), eventPublisher, null, null);
 
         goldService.processEvent(new IncomingEvent("purchase", t1, u1, "evt-gold", Instant.now(), Map.of()));
 
@@ -182,6 +182,7 @@ class LoyaltyDomainServiceTest {
 
     static class InMemoryTierPolicyRepository implements TierPolicyRepository {
         @Override public Optional<TierPolicy> findByTenantId(TenantId t) { return Optional.empty(); }
+        @Override public reactor.core.publisher.Mono<TierPolicy> save(TierPolicy p) { return reactor.core.publisher.Mono.just(p); }
     }
 
     static class InMemoryRuleCache implements RuleCachePort {
