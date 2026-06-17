@@ -4,7 +4,7 @@ import com.yowyob.loyalty.domain.shared.model.TenantId;
 import com.yowyob.loyalty.domain.tenant.model.Tenant;
 import com.yowyob.loyalty.domain.tenant.model.TenantConfig;
 import com.yowyob.loyalty.domain.tenant.model.enums.TenantPlan;
-import com.yowyob.loyalty.domain.tenant.port.out.TenantRepository;
+import com.yowyob.loyalty.infrastructure.kernelcore.adapter.KernelCoreTenantAdapter;
 import com.yowyob.loyalty.infrastructure.redis.adapter.TenantCacheAdapter;
 import com.yowyob.loyalty.shared.security.JwtClaimsExtractor;
 import org.junit.jupiter.api.BeforeEach;
@@ -21,22 +21,21 @@ import reactor.test.StepVerifier;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
 public class TenantResolutionFilterTest {
 
     private TenantCacheAdapter tenantCacheAdapter;
-    private TenantRepository tenantRepository;
+    private KernelCoreTenantAdapter kernelCoreTenantAdapter;
     private JwtClaimsExtractor jwtClaimsExtractor;
     private TenantResolutionFilter filter;
 
     @BeforeEach
     public void setup() {
         tenantCacheAdapter = Mockito.mock(TenantCacheAdapter.class);
-        tenantRepository = Mockito.mock(TenantRepository.class);
+        kernelCoreTenantAdapter = Mockito.mock(KernelCoreTenantAdapter.class);
         jwtClaimsExtractor = Mockito.mock(JwtClaimsExtractor.class);
-        filter = new TenantResolutionFilter(tenantCacheAdapter, tenantRepository, jwtClaimsExtractor);
+        filter = new TenantResolutionFilter(tenantCacheAdapter, kernelCoreTenantAdapter, jwtClaimsExtractor);
     }
 
     @Test
