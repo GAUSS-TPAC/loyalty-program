@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter, Link } from "@/i18n/routing";
 import { usePathname } from "next/navigation";
-import { Terminal, Settings, LogOut, Code2, Cpu, Wallet, Users, LayoutDashboard, Menu, X, Zap, Gift, Star, UserPlus } from "lucide-react";
+import { Terminal, Settings, LogOut, Code2, Cpu, Wallet, Users, LayoutDashboard, Menu, X, Zap, Gift, Tag, Megaphone, CreditCard } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 
@@ -46,6 +46,9 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
     { name: tNav("membersDirectory"), href: "/portal/members", icon: Users },
     { name: "Événements", href: "/portal/events", icon: Zap },
     { name: "Bonification", href: "/portal/bonification", icon: Gift },
+    { name: "Codes Promo", href: "/portal/promo", icon: Tag },
+    { name: "Campagnes", href: "/portal/campaigns", icon: Megaphone },
+    { name: "Abonnement", href: "/portal/subscriptions", icon: CreditCard },
     { name: tNav("eventLogs"), href: "/portal/logs", icon: Terminal },
   ];
 

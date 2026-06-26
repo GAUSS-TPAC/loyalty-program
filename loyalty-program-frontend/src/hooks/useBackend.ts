@@ -14,6 +14,9 @@ import {
     rulesApi,
     bonificationApi,
     systemApi,
+    promoApi,
+    campaignApi,
+    subscriptionApi,
     type WalletResponse,
     type PointsAccountResponse,
     type MemberTierResponse,
@@ -22,6 +25,11 @@ import {
     type RuleResponse,
     type BonificationStatusResponse,
     type HealthResponse,
+    type PromoCampaignResponse,
+    type CampaignResponse,
+    type SubscriptionPlanResponse,
+    type TenantSubscriptionResponse,
+    type InvoiceResponse,
 } from "@/lib/api";
 
 // ─── Générique ───────────────────────────────────────────────────────────────
@@ -127,4 +135,35 @@ export function useBonificationStatus(): UseQueryResult<BonificationStatusRespon
 /** Retourne la santé du backend */
 export function useBackendHealth(): UseQueryResult<HealthResponse> {
     return useQuery(() => systemApi.health());
+}
+
+// ─── Hooks Codes Promo ────────────────────────────────────────────────────────
+
+/** Retourne toutes les campagnes promo du tenant */
+export function usePromos(): UseQueryResult<PromoCampaignResponse[]> {
+    return useQuery(() => promoApi.listAll());
+}
+
+// ─── Hooks Campagnes ──────────────────────────────────────────────────────────
+
+/** Retourne toutes les campagnes temporisées */
+export function useCampaigns(): UseQueryResult<CampaignResponse[]> {
+    return useQuery(() => campaignApi.listAll());
+}
+
+// ─── Hooks Abonnements ────────────────────────────────────────────────────────
+
+/** Retourne la liste des plans disponibles */
+export function useSubscriptionPlans(): UseQueryResult<SubscriptionPlanResponse[]> {
+    return useQuery(() => subscriptionApi.listPlans());
+}
+
+/** Retourne l'abonnement courant du tenant */
+export function useMySubscription(): UseQueryResult<TenantSubscriptionResponse> {
+    return useQuery(() => subscriptionApi.getMySubscription());
+}
+
+/** Retourne les factures du tenant */
+export function useMyInvoices(): UseQueryResult<InvoiceResponse[]> {
+    return useQuery(() => subscriptionApi.getMyInvoices());
 }

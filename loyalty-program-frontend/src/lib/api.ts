@@ -275,3 +275,166 @@ export const systemApi = {
     /** GET /actuator/health — Santé de l'application */
     health: () => get<HealthResponse>("/actuator/health"),
 };
+
+// ─── Types Codes Promo ───────────────────────────────────────────────────────
+
+export interface PromoCampaignResponse {
+    id: string;
+    tenantId: string;
+    code: string;
+    name: string;
+    discountType: "PERCENTAGE" | "FIXED_AMOUNT" | "FREE_ITEM";
+    discountValue: number;
+    minOrderAmount: number | null;
+    maxUses: number;
+    perMemberLimit: number;
+    startDate: string;
+    endDate: string | null;
+    active: boolean;
+    createdAt: string;
+}
+
+export interface CreatePromoRequest {
+    code: string;
+    name: string;
+    discountType: string;
+    discountValue: number;
+    minOrderAmount?: number;
+    maxUses: number;
+    perMemberLimit: number;
+    startDate: string;
+    endDate?: string;
+}
+
+export interface ValidatePromoResponse {
+    valid: boolean;
+    discountApplied: number;
+    campaignName: string;
+    message: string;
+}
+
+// ─── Types Campagnes ─────────────────────────────────────────────────────────
+
+export interface CampaignResponse {
+    id: string;
+    tenantId: string;
+    name: string;
+    description: string | null;
+    campaignType: "BONUS_MULTIPLIER" | "FLAT_BONUS";
+    targetEventType: string | null;
+    bonusMultiplier: number | null;
+    bonusPoints: number | null;
+    startDate: string;
+    endDate: string | null;
+    status: "DRAFT" | "ACTIVE" | "PAUSED" | "COMPLETED" | "CANCELLED";
+    createdAt: string;
+}
+
+export interface CreateCampaignRequest {
+    name: string;
+    description?: string;
+    campaignType: string;
+    targetEventType?: string;
+    bonusMultiplier?: number;
+    bonusPoints?: number;
+    startDate: string;
+    endDate?: string;
+}
+
+// ─── Types Abonnements ───────────────────────────────────────────────────────
+
+export interface PlanFeaturesResponse {
+    maxRules: number;
+    maxMembers: number;
+    maxEventsPerMonth: number;
+    referralEnabled: boolean;
+    campaignsEnabled: boolean;
+    promoCodesEnabled: boolean;
+    analyticsEnabled: boolean;
+}
+
+export interface SubscriptionPlanResponse {
+    id: string;
+    code: string;
+    name: string;
+    description: string | null;
+    priceMonthly: number;
+    priceYearly: number;
+    currency: string;
+    features: PlanFeaturesResponse;
+    active: boolean;
+    createdAt: string;
+}
+
+export interface TenantSubscriptionResponse {
+    id: string;
+    tenantId: string;
+    planId: string;
+    status: "TRIAL" | "ACTIVE" | "PAST_DUE" | "CANCELLED" | "EXPIRED";
+    billingCycle: "MONTHLY" | "YEARLY";
+    currentPeriodStart: string;
+    currentPeriodEnd: string;
+    trialEndDate: string | null;
+    cancelledAt: string | null;
+    createdAt: string;
+}
+
+export interface InvoiceResponse {
+    id: string;
+    tenantId: string;
+    subscriptionId: string;
+    planId: string;
+    amount: number;
+    currency: string;
+    status: "PENDING" | "PAID" | "FAILED" | "VOID";
+    periodStart: string;
+    periodEnd: string;
+    dueDate: string;
+    paidAt: string | null;
+    createdAt: string;
+}
+
+// ─── API Codes Promo ─────────────────────────────────────────────────────────
+
+export const promoApi = {
+    listAll: () => get<PromoCampaignResponse[]>("/api/v1/promo/admin/campaigns"),
+    listActive: () => get<PromoCampaignResponse[]>("/api/v1/promo/campaigns"),
+    create: (data: CreatePromoRequest) =>
+        post<PromoCampaignResponse>("/api/v1/promo/admin/campaigns", data),
+    activate: (id: string) =>
+        patch<PromoCampaignResponse>(`/api/v1/promo/admin/campaigns/${id}/activate`),
+    deactivate: (id: string) =>
+        patch<PromoCampaignResponse>(`/api/v1/promo/admin/campaigns/${id}/deactivate`),
+    validate: (code: string, orderAmount: number) =>
+        post<ValidatePromoResponse>("/api/v1/promo/validate", { code, orderAmount }),
+};
+
+// ─── API Campagnes ───────────────────────────────────────────────────────────
+
+export const campaignApi = {
+    listAll: () => get<CampaignResponse[]>("/api/v1/campaigns"),
+    listActive: () => get<CampaignResponse[]>("/api/v1/campaigns/active"),
+    create: (data: CreateCampaignRequest) =>
+        post<CampaignResponse>("/api/v1/campaigns", data),
+    activate: (id: string) =>
+        patch<CampaignResponse>(`/api/v1/campaigns/${id}/activate`),
+    pause: (id: string) =>
+        patch<CampaignResponse>(`/api/v1/campaigns/${id}/pause`),
+    cancel: (id: string) =>
+        patch<CampaignResponse>(`/api/v1/campaigns/${id}/cancel`),
+};
+
+// ─── API Abonnements ─────────────────────────────────────────────────────────
+
+export const subscriptionApi = {
+    listPlans: () => get<SubscriptionPlanResponse[]>("/api/v1/subscription-plans"),
+    getMySubscription: () => get<TenantSubscriptionResponse>("/api/v1/subscriptions/me"),
+    getMyInvoices: () => get<InvoiceResponse[]>("/api/v1/subscriptions/me/invoices"),
+    subscribe: (planId: string, billingCycle: string) =>
+        post<TenantSubscriptionResponse>("/api/v1/subscriptions", { planId, billingCycle }),
+    startTrial: (planId: string, trialDays = 14) =>
+        post<TenantSubscriptionResponse>("/api/v1/subscriptions/trial", { planId, trialDays }),
+    changePlan: (newPlanId: string) =>
+        patch<TenantSubscriptionResponse>("/api/v1/subscriptions/me/plan", { newPlanId }),
+    cancel: () => request<void>("DELETE", "/api/v1/subscriptions/me"),
+};

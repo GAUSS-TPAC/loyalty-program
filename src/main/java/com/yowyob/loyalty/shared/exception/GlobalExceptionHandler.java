@@ -5,6 +5,8 @@ import com.yowyob.loyalty.domain.bonification.exception.BonificationException;
 import com.yowyob.loyalty.domain.campaign.exception.CampaignDomainException;
 import com.yowyob.loyalty.domain.campaign.exception.CampaignNotFoundException;
 import com.yowyob.loyalty.domain.promo.exception.*;
+import com.yowyob.loyalty.domain.subscription.exception.*;
+
 import java.time.Instant;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -103,6 +105,23 @@ public class GlobalExceptionHandler {
                 requestId,
                 Instant.now(),
                 null
+        );
+        return Mono.just(ResponseEntity.status(code.getHttpStatus()).body(problemDetails));
+    }
+
+    @ExceptionHandler(SubscriptionDomainException.class)
+    public Mono<ResponseEntity<ProblemDetails>> handleSubscriptionDomainException(SubscriptionDomainException ex, ServerWebExchange exchange) {
+        String requestId = extractRequestId(exchange);
+        ErrorCode code;
+        if (ex instanceof PlanNotFoundException)                     code = ErrorCode.PLAN_NOT_FOUND;
+        else if (ex instanceof SubscriptionNotFoundException)        code = ErrorCode.SUBSCRIPTION_NOT_FOUND;
+        else if (ex instanceof AlreadySubscribedException)           code = ErrorCode.ALREADY_SUBSCRIBED;
+        else if (ex instanceof SubscriptionAlreadyTerminalException) code = ErrorCode.SUBSCRIPTION_ALREADY_TERMINAL;
+        else                                                         code = ErrorCode.INTERNAL_ERROR;
+
+        ProblemDetails problemDetails = new ProblemDetails(
+                "https://loyalty.yowyob.com/errors/" + code.name().toLowerCase(),
+                code.name(), code.getHttpStatus(), ex.getMessage(), requestId, Instant.now(), null
         );
         return Mono.just(ResponseEntity.status(code.getHttpStatus()).body(problemDetails));
     }
