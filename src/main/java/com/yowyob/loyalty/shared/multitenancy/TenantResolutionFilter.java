@@ -1,14 +1,14 @@
 package com.yowyob.loyalty.shared.multitenancy;
 
 import com.yowyob.loyalty.domain.shared.model.TenantId;
-import com.yowyob.loyalty.domain.tenant.port.out.TenantRepository;
+import com.yowyob.loyalty.infrastructure.kernelcore.adapter.KernelCoreTenantAdapter;
 import com.yowyob.loyalty.infrastructure.redis.adapter.TenantCacheAdapter;
+import com.yowyob.loyalty.shared.exception.TenantNotFoundException;
 import com.yowyob.loyalty.shared.security.JwtClaimsExtractor;
-import com.yowyob.loyalty.shared.security.JwtTokenValidator;
+import org.springframework.context.annotation.Profile;
 import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
-import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ServerWebExchange;
 import org.springframework.web.server.WebFilter;
@@ -25,17 +25,15 @@ public class TenantResolutionFilter implements WebFilter {
     };
 
     private final TenantCacheAdapter tenantCacheAdapter;
-    private final TenantRepository tenantRepository;
-    private final JwtTokenValidator jwtTokenValidator;
+    private final KernelCoreTenantAdapter kernelCoreTenantAdapter;
     private final JwtClaimsExtractor jwtClaimsExtractor;
 
-    public TenantResolutionFilter(TenantCacheAdapter tenantCacheAdapter,
-                                  TenantRepository tenantRepository,
-                                  JwtTokenValidator jwtTokenValidator,
-                                  JwtClaimsExtractor jwtClaimsExtractor) {
+    public TenantResolutionFilter(
+            TenantCacheAdapter tenantCacheAdapter,
+            KernelCoreTenantAdapter kernelCoreTenantAdapter,
+            JwtClaimsExtractor jwtClaimsExtractor) {
         this.tenantCacheAdapter = tenantCacheAdapter;
-        this.tenantRepository = tenantRepository;
-        this.jwtTokenValidator = jwtTokenValidator;
+        this.kernelCoreTenantAdapter = kernelCoreTenantAdapter;
         this.jwtClaimsExtractor = jwtClaimsExtractor;
     }
 
@@ -52,47 +50,30 @@ public class TenantResolutionFilter implements WebFilter {
             return chain.filter(exchange);
         }
 
-        String token = authHeader.substring(7);
+        TenantId tenantId;
+        try {
+            tenantId = jwtClaimsExtractor.extractTenantIdFromRawToken(authHeader.substring(7));
+        } catch (Exception e) {
+            return writeUnauthorized(exchange);
+        }
 
-        // Validate signature via JWK before trusting any claim
-        return jwtTokenValidator.validateToken(token)
-                .flatMap(result -> {
-                    if (!result.isValid()) {
-                        return writeUnauthorized(exchange);
-                    }
-                    TenantId tenantId;
-                    try {
-                        tenantId = jwtClaimsExtractor.extractTenantId(result.jwt());
-                    } catch (Exception e) {
-                        return writeUnauthorized(exchange);
-                    }
-                    return resolveTenant(tenantId, exchange, chain);
-                })
-                .onErrorResume(e -> writeUnauthorized(exchange));
+        return resolveTenant(tenantId, exchange, chain);
     }
 
     private Mono<Void> resolveTenant(TenantId tenantId, ServerWebExchange exchange, WebFilterChain chain) {
         return tenantCacheAdapter.findById(tenantId)
-                .switchIfEmpty(Mono.defer(() -> tenantRepository.findById(tenantId)
-                        .flatMap(tenant -> tenantCacheAdapter.cache(tenant).thenReturn(tenant))))
+                .switchIfEmpty(Mono.defer(() -> kernelCoreTenantAdapter.fetchAndCache(tenantId)))
                 .flatMap(tenant -> {
-                    if (!tenant.isActive()) {
-                        return writeForbidden(exchange);
-                    }
+                    if (!tenant.isActive()) return writeUnauthorized(exchange);
                     TenantContext ctx = TenantContext.from(tenant);
-                    return chain.filter(exchange)
-                            .contextWrite(TenantContextHolder.withTenantContext(ctx));
+                    return chain.filter(exchange).contextWrite(TenantContextHolder.withTenantContext(ctx));
                 })
+                .onErrorResume(TenantNotFoundException.class, e -> writeUnauthorized(exchange))
                 .switchIfEmpty(Mono.defer(() -> writeUnauthorized(exchange)));
     }
 
     private Mono<Void> writeUnauthorized(ServerWebExchange exchange) {
         exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
-        return exchange.getResponse().setComplete();
-    }
-
-    private Mono<Void> writeForbidden(ServerWebExchange exchange) {
-        exchange.getResponse().setStatusCode(HttpStatus.FORBIDDEN);
         return exchange.getResponse().setComplete();
     }
 }

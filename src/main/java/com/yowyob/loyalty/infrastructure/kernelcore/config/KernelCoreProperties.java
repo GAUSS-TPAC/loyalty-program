@@ -1,16 +1,18 @@
 package com.yowyob.loyalty.infrastructure.kernelcore.config;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.stereotype.Component;
 
+@Component
 @ConfigurationProperties(prefix = "app.kernel-core")
 public class KernelCoreProperties {
 
     private String baseUrl = "http://localhost:8090";
-    private String serviceClientId = "loyalty-service";
-    private String serviceClientSecret = "changeme";
-    private String tokenEndpoint = "";
-    private int connectTimeoutMs = 3_000;
-    private int readTimeoutMs = 5_000;
+    private String serviceClientId;
+    private String serviceClientSecret;
+    private String tokenEndpoint;
+    private int connectTimeoutMs = 3000;
+    private int readTimeoutMs = 5000;
 
     public String resolvedTokenEndpoint() {
         if (tokenEndpoint != null && !tokenEndpoint.isBlank()) {
@@ -18,6 +20,10 @@ public class KernelCoreProperties {
         }
         String base = baseUrl.endsWith("/") ? baseUrl.substring(0, baseUrl.length() - 1) : baseUrl;
         return base + "/oauth2/token";
+    }
+
+    public boolean hasTokenEndpoint() {
+        return tokenEndpoint != null && !tokenEndpoint.isBlank();
     }
 
     public String getBaseUrl() { return baseUrl; }

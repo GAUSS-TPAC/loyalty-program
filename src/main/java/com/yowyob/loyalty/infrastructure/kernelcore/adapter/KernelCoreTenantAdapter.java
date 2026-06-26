@@ -6,105 +6,98 @@ import com.yowyob.loyalty.domain.tenant.model.Tenant;
 import com.yowyob.loyalty.domain.tenant.model.TenantConfig;
 import com.yowyob.loyalty.domain.tenant.model.enums.TenantPlan;
 import com.yowyob.loyalty.domain.tenant.model.enums.TenantStatus;
-import com.yowyob.loyalty.infrastructure.kernelcore.dto.KernelCoreOrganizationDto;
-import com.yowyob.loyalty.infrastructure.kernelcore.service.KernelCoreTokenService;
+import com.yowyob.loyalty.infrastructure.kernelcore.dto.KernelApiResponse;
+import com.yowyob.loyalty.infrastructure.kernelcore.dto.KernelOrganizationDto;
 import com.yowyob.loyalty.infrastructure.redis.adapter.TenantCacheAdapter;
+import com.yowyob.loyalty.shared.exception.TenantNotFoundException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpStatus;
+import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 
 /**
- * Récupère les données d'une organisation depuis le Kernel Core
- * et les met en cache Redis sous forme de Tenant.
- *
- * Endpoint : GET <kernel-core-url>/api/organizations/{id}
- * Auth      : Bearer token OAuth2 client_credentials
+ * Résout et valide un tenant via Kernel Core.
+ * Endpoint : GET /api/organizations/{organizationId}
+ * Résultat mis en cache Redis 5 min.
  */
+@Component
 public class KernelCoreTenantAdapter {
 
     private static final Logger log = LoggerFactory.getLogger(KernelCoreTenantAdapter.class);
 
-    private final WebClient webClient;
+    private static final ParameterizedTypeReference<KernelApiResponse<KernelOrganizationDto>> ORG_TYPE =
+            new ParameterizedTypeReference<>() {};
+
+    private final WebClient kernelCoreWebClient;
     private final KernelCoreTokenService tokenService;
     private final TenantCacheAdapter tenantCache;
 
     public KernelCoreTenantAdapter(
-            WebClient webClient,
+            @Qualifier("kernelCoreWebClient") WebClient kernelCoreWebClient,
             KernelCoreTokenService tokenService,
             TenantCacheAdapter tenantCache) {
-        this.webClient = webClient;
+        this.kernelCoreWebClient = kernelCoreWebClient;
         this.tokenService = tokenService;
         this.tenantCache = tenantCache;
     }
 
-    /**
-     * Récupère l'organisation depuis Kernel Core, la convertit en Tenant
-     * et la met en cache Redis avant de la retourner.
-     * Retourne {@code Mono.empty()} si l'organisation est introuvable ou en cas d'erreur.
-     */
     public Mono<Tenant> fetchAndCache(TenantId tenantId) {
         return tokenService.getServiceToken()
-                .flatMap(token -> webClient.get()
-                        .uri("/api/organizations/{id}", tenantId.value())
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
-                        .retrieve()
-                        .onStatus(status -> status == HttpStatus.NOT_FOUND,
-                                response -> Mono.error(new RuntimeException("Organization not found: " + tenantId.value())))
-                        .onStatus(status -> status == HttpStatus.UNAUTHORIZED || status == HttpStatus.FORBIDDEN,
-                                response -> {
-                                    log.warn("Token Kernel Core invalide pour l'organisation {}", tenantId.value());
-                                    return Mono.error(new RuntimeException("Kernel Core token rejected"));
-                                })
-                        .bodyToMono(KernelCoreOrganizationDto.class))
-                .flatMap(dto -> {
-                    Tenant tenant = toDomain(dto);
-                    return tenantCache.cache(tenant).thenReturn(tenant);
-                })
-                .doOnError(e -> log.warn("Impossible de récupérer l'organisation {} depuis Kernel Core: {}",
-                        tenantId.value(), e.getMessage()))
-                .onErrorResume(e -> Mono.empty());
+                .flatMap(token -> fetchOrganization(tenantId, token))
+                .switchIfEmpty(Mono.defer(() -> fetchOrganization(tenantId, null)))
+                .map(org -> toTenant(tenantId, org))
+                .flatMap(tenant -> tenantCache.cache(tenant).thenReturn(tenant))
+                .doOnSuccess(t -> log.debug("Tenant résolu depuis Kernel Core: {}", tenantId))
+                .doOnError(e -> log.warn("Échec résolution Kernel Core pour {}: {}", tenantId, e.getMessage()));
     }
 
-    private Tenant toDomain(KernelCoreOrganizationDto dto) {
-        TenantId tenantId = TenantId.of(dto.id());
+    private Mono<KernelOrganizationDto> fetchOrganization(TenantId tenantId, String token) {
+        return kernelCoreWebClient.get()
+                .uri("/api/organizations/{id}", tenantId.value())
+                .headers(headers -> {
+                    if (token != null && !token.isBlank()) {
+                        headers.set(HttpHeaders.AUTHORIZATION, "Bearer " + token);
+                    }
+                })
+                .retrieve()
+                .onStatus(status -> status.value() == 404,
+                        resp -> Mono.error(new TenantNotFoundException("Organisation introuvable dans Kernel Core: " + tenantId.value())))
+                .onStatus(status -> status.is4xxClientError(),
+                        resp -> Mono.error(new TenantNotFoundException("Accès refusé pour l'organisation: " + tenantId.value())))
+                .bodyToMono(ORG_TYPE)
+                .flatMap(response -> {
+                    if (!response.isSuccess() || response.getData() == null) {
+                        return Mono.error(new TenantNotFoundException("Réponse Kernel Core invalide pour: " + tenantId.value()));
+                    }
+                    return Mono.just(response.getData());
+                });
+    }
+
+    private Tenant toTenant(TenantId tenantId, KernelOrganizationDto org) {
         return new Tenant(
                 tenantId,
-                dto.name() != null ? dto.name() : dto.id().toString(),
-                dto.slug() != null ? dto.slug() : dto.id().toString(),
-                parseStatus(dto.status()),
-                parsePlan(dto.plan()),
+                org.resolveName(),
+                org.resolveSlug(),
+                mapStatus(org),
+                TenantPlan.FREE,
                 TenantConfig.defaults(),
                 AuditInfo.now("kernel-core")
         );
     }
 
-    private TenantStatus parseStatus(String raw) {
-        if (raw == null) return TenantStatus.PENDING_SETUP;
-        try {
-            return TenantStatus.valueOf(raw.toUpperCase());
-        } catch (IllegalArgumentException e) {
-            return switch (raw.toUpperCase()) {
-                case "ENABLED", "VALIDATED" -> TenantStatus.ACTIVE;
-                case "DISABLED", "BLOCKED", "BANNED" -> TenantStatus.SUSPENDED;
-                case "TRIAL" -> TenantStatus.TRIAL;
-                default -> TenantStatus.PENDING_SETUP;
-            };
-        }
-    }
-
-    private TenantPlan parsePlan(String raw) {
-        if (raw == null) return TenantPlan.FREE;
-        try {
-            return TenantPlan.valueOf(raw.toUpperCase());
-        } catch (IllegalArgumentException e) {
-            return switch (raw.toUpperCase()) {
-                case "PREMIUM", "BUSINESS" -> TenantPlan.PRO;
-                case "UNLIMITED", "CORPORATE" -> TenantPlan.ENTERPRISE;
-                default -> TenantPlan.FREE;
-            };
-        }
+    private TenantStatus mapStatus(KernelOrganizationDto org) {
+        if (!org.isActive()) return TenantStatus.SUSPENDED;
+        if (org.getStatus() == null) return TenantStatus.ACTIVE;
+        return switch (org.getStatus().toUpperCase()) {
+            case "ACTIVE"                       -> TenantStatus.ACTIVE;
+            case "SUSPENDED", "INACTIVE",
+                 "CLOSED", "REJECTED"           -> TenantStatus.SUSPENDED;
+            case "PENDING", "PENDING_APPROVAL"  -> TenantStatus.PENDING_SETUP;
+            default                             -> TenantStatus.ACTIVE;
+        };
     }
 }
