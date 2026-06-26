@@ -13,6 +13,8 @@ import org.springframework.lang.Nullable;
 
 import java.util.List;
 
+import java.util.List;
+
 @Configuration
 public class LoyaltyConfig {
 
@@ -69,7 +71,8 @@ public class LoyaltyConfig {
             RuleCachePort ruleCache,
             LoyaltyEventPublisherPort eventPublisher,
             @Qualifier("creditWalletHandler") CreditWalletUseCase creditWalletUseCase,
-            @Nullable RewardGrantPort rewardGrantPort
+            @Nullable RewardGrantPort rewardGrantPort,
+            @Nullable ActiveCampaignPort activeCampaignPort
     ) {
         return new LoyaltyDomainService(
                 ruleEngine,
@@ -84,7 +87,8 @@ public class LoyaltyConfig {
                 ruleCache,
                 eventPublisher,
                 creditWalletUseCase,
-                rewardGrantPort
+                rewardGrantPort,
+                activeCampaignPort
         );
     }
 

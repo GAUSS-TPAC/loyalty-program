@@ -8,6 +8,7 @@ import com.yowyob.loyalty.infrastructure.persistence.loyalty.mapper.LoyaltyPersi
 import com.yowyob.loyalty.infrastructure.persistence.loyalty.repository.MemberTierR2dbcRepository;
 import org.springframework.stereotype.Component;
 
+import java.util.List;
 import java.util.Optional;
 
 @Component
@@ -31,5 +32,13 @@ public class MemberTierRepositoryAdapter implements MemberTierRepository {
         return repository.findByMemberIdAndTenantId(memberId.value(), tenantId.value())
                 .map(mapper::toDomain)
                 .blockOptional();
+    }
+
+    @Override
+    public List<MemberTier> findAllAboveBronze() {
+        return repository.findAllByTierLevelNot("BRONZE")
+                .map(mapper::toDomain)
+                .collectList()
+                .block();
     }
 }

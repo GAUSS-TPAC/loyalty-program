@@ -1,14 +1,13 @@
 package com.yowyob.loyalty.infrastructure.kernelcore.config;
 
 import com.yowyob.loyalty.infrastructure.kernelcore.adapter.KernelCoreTenantAdapter;
-import com.yowyob.loyalty.infrastructure.kernelcore.service.KernelCoreTokenService;
+import com.yowyob.loyalty.infrastructure.kernelcore.adapter.KernelCoreTokenService;
 import com.yowyob.loyalty.infrastructure.redis.adapter.TenantCacheAdapter;
 import io.netty.channel.ChannelOption;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.data.redis.core.ReactiveRedisTemplate;
 import org.springframework.http.client.reactive.ReactorClientHttpConnector;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.netty.http.client.HttpClient;
@@ -35,11 +34,8 @@ public class KernelCoreConfig {
     }
 
     @Bean
-    public KernelCoreTokenService kernelCoreTokenService(
-            KernelCoreProperties properties,
-            @Qualifier("kernelCoreWebClient") WebClient kernelCoreWebClient,
-            @Qualifier("objectRedisTemplate") ReactiveRedisTemplate<String, Object> redisTemplate) {
-        return new KernelCoreTokenService(properties, kernelCoreWebClient, redisTemplate);
+    public KernelCoreTokenService kernelCoreTokenService(KernelCoreProperties properties) {
+        return new KernelCoreTokenService(properties);
     }
 
     @Bean
