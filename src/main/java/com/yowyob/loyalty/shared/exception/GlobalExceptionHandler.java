@@ -2,6 +2,8 @@ package com.yowyob.loyalty.shared.exception;
 
 import com.yowyob.loyalty.api.shared.dto.ProblemDetails;
 import com.yowyob.loyalty.domain.bonification.exception.BonificationException;
+import com.yowyob.loyalty.domain.campaign.exception.CampaignDomainException;
+import com.yowyob.loyalty.domain.campaign.exception.CampaignNotFoundException;
 import com.yowyob.loyalty.domain.promo.exception.*;
 import java.time.Instant;
 import java.util.Map;
@@ -65,6 +67,19 @@ public class GlobalExceptionHandler {
         );
 
         return Mono.just(ResponseEntity.status(HttpStatus.BAD_REQUEST).body(problemDetails));
+    }
+
+    @ExceptionHandler(CampaignDomainException.class)
+    public Mono<ResponseEntity<ProblemDetails>> handleCampaignDomainException(CampaignDomainException ex, ServerWebExchange exchange) {
+        String requestId = extractRequestId(exchange);
+        ErrorCode code = ex instanceof CampaignNotFoundException
+                ? ErrorCode.CAMPAIGN_NOT_FOUND
+                : ErrorCode.CAMPAIGN_INVALID_TRANSITION;
+        ProblemDetails problemDetails = new ProblemDetails(
+                "https://loyalty.yowyob.com/errors/" + code.name().toLowerCase(),
+                code.name(), code.getHttpStatus(), ex.getMessage(), requestId, Instant.now(), null
+        );
+        return Mono.just(ResponseEntity.status(code.getHttpStatus()).body(problemDetails));
     }
 
     @ExceptionHandler(PromoDomainException.class)

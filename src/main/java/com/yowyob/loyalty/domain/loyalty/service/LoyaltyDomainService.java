@@ -23,6 +23,7 @@ import com.yowyob.loyalty.domain.shared.model.TenantId;
 import com.yowyob.loyalty.domain.shared.model.UserId;
 
 import java.time.Instant;
+import com.yowyob.loyalty.domain.loyalty.port.out.ActiveCampaignPort;
 import com.yowyob.loyalty.domain.loyalty.port.out.RewardGrantPort;
 import com.yowyob.loyalty.domain.loyalty.service.executor.EffectExecutionContext;
 import com.yowyob.loyalty.domain.wallet.port.in.CreditWalletUseCase;
@@ -37,7 +38,7 @@ public class LoyaltyDomainService implements ProcessEventUseCase, CreateRuleUseC
     private final RuleEngine ruleEngine;
     private final CounterService counterService;
     private final TierCalculationService tierService;
-    
+
     private final RuleRepository ruleRepo;
     private final PointsAccountRepository pointsRepo;
     private final PointsTransactionRepository pointsTxRepo;
@@ -48,6 +49,7 @@ public class LoyaltyDomainService implements ProcessEventUseCase, CreateRuleUseC
     private final LoyaltyEventPublisherPort eventPublisher;
     private final CreditWalletUseCase creditWalletUseCase;
     private final RewardGrantPort rewardGrantPort;
+    private final ActiveCampaignPort activeCampaignPort;
 
     public LoyaltyDomainService(RuleEngine ruleEngine,
                                 CounterService counterService,
@@ -61,7 +63,8 @@ public class LoyaltyDomainService implements ProcessEventUseCase, CreateRuleUseC
                                 RuleCachePort ruleCache,
                                 LoyaltyEventPublisherPort eventPublisher,
                                 CreditWalletUseCase creditWalletUseCase,
-                                RewardGrantPort rewardGrantPort) {
+                                RewardGrantPort rewardGrantPort,
+                                ActiveCampaignPort activeCampaignPort) {
         this.ruleEngine = ruleEngine;
         this.counterService = counterService;
         this.tierService = tierService;
@@ -75,6 +78,7 @@ public class LoyaltyDomainService implements ProcessEventUseCase, CreateRuleUseC
         this.eventPublisher = eventPublisher;
         this.creditWalletUseCase = creditWalletUseCase;
         this.rewardGrantPort = rewardGrantPort;
+        this.activeCampaignPort = activeCampaignPort;
     }
 
     @Override
@@ -124,12 +128,29 @@ public class LoyaltyDomainService implements ProcessEventUseCase, CreateRuleUseC
         MemberTier updatedTier = memberTier;
 
         // Apply Points
+        java.util.List<ActiveCampaignPort.CampaignBonus> activeBonuses =
+                activeCampaignPort != null
+                        ? activeCampaignPort.getActiveBonuses(event.tenantId(), event.eventType())
+                        : java.util.List.of();
+
         for (EffectExecutionContext.PointsOperation op : effectContext.getPendingPointsOperations()) {
             if ("CREDIT".equals(op.type())) {
                 updatedAccount = updatedAccount.earn(op.amount());
-                PointsTransaction tx = PointsTransaction.forCredit(updatedAccount.getId(), event.tenantId(), 
+                PointsTransaction tx = PointsTransaction.forCredit(updatedAccount.getId(), event.tenantId(),
                         op.amount(), updatedAccount.getAvailablePoints(), op.ruleId(), event.idempotencyKey());
                 pointsTxRepo.save(tx);
+
+                for (ActiveCampaignPort.CampaignBonus bonus : activeBonuses) {
+                    long extra = bonus.calculateExtraPoints(op.amount());
+                    if (extra > 0) {
+                        updatedAccount = updatedAccount.earn(extra);
+                        PointsTransaction bonusTx = PointsTransaction.forCredit(updatedAccount.getId(), event.tenantId(),
+                                extra, updatedAccount.getAvailablePoints(), null, null);
+                        pointsTxRepo.save(bonusTx);
+                        finalEffects.add(new AppliedEffect("CAMPAIGN_BONUS", bonus.campaignId().toString(),
+                                bonus.campaignName(), Map.of("extra_points", extra)));
+                    }
+                }
             }
         }
 
