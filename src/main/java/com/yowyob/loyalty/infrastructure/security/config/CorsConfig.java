@@ -16,7 +16,9 @@ public class CorsConfig {
         CorsConfiguration corsConfig = new CorsConfiguration();
         corsConfig.setAllowedOrigins(List.of("http://localhost:3000", "http://localhost:3001", "https://dashboard.yowyob.com"));
         corsConfig.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
-        corsConfig.setAllowedHeaders(List.of("*"));
+        corsConfig.setAllowedHeaders(List.of(
+                "Authorization", "Content-Type", "X-Api-Key",
+                "Idempotency-Key", "X-Request-Id", "Accept"));
         corsConfig.setAllowCredentials(true);
         corsConfig.setMaxAge(3600L);
 

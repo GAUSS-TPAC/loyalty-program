@@ -1,9 +1,11 @@
 package com.yowyob.loyalty.api.wallet;
 
+import com.yowyob.loyalty.api.wallet.dto.request.ConfirmOtpRequest;
 import com.yowyob.loyalty.api.wallet.dto.request.CreateWalletRequest;
 import com.yowyob.loyalty.api.wallet.dto.request.CreditRequest;
 import com.yowyob.loyalty.api.wallet.dto.request.DebitRequest;
 import com.yowyob.loyalty.api.wallet.dto.request.FreezeRequest;
+import com.yowyob.loyalty.api.wallet.dto.response.DebitResponse;
 import com.yowyob.loyalty.api.wallet.dto.response.WalletResponse;
 import com.yowyob.loyalty.api.wallet.dto.response.WalletTransactionResponse;
 import com.yowyob.loyalty.domain.shared.model.UserId;
@@ -16,6 +18,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -32,6 +35,7 @@ public class WalletController {
     private final GetWalletUseCase getWalletUseCase;
     private final CreditWalletUseCase creditWalletUseCase;
     private final DebitWalletUseCase debitWalletUseCase;
+    private final ConfirmOtpUseCase confirmOtpUseCase;
     private final FreezeWalletUseCase freezeWalletUseCase;
     private final UnfreezeWalletUseCase unfreezeWalletUseCase;
     private final GetTransactionHistoryUseCase getTransactionHistoryUseCase;
@@ -39,17 +43,19 @@ public class WalletController {
 
     public WalletController(
             @Qualifier("createWalletHandler") CreateWalletUseCase createWalletUseCase,
-            @Qualifier("walletDomainService") GetWalletUseCase getWalletUseCase,
+            @Qualifier("getWalletHandler") GetWalletUseCase getWalletUseCase,
             @Qualifier("creditWalletHandler") CreditWalletUseCase creditWalletUseCase,
             @Qualifier("debitWalletHandler") DebitWalletUseCase debitWalletUseCase,
+            @Qualifier("confirmOtpHandler") ConfirmOtpUseCase confirmOtpUseCase,
             @Qualifier("freezeWalletHandler") FreezeWalletUseCase freezeWalletUseCase,
             @Qualifier("unfreezeWalletHandler") UnfreezeWalletUseCase unfreezeWalletUseCase,
-            @Qualifier("walletDomainService") GetTransactionHistoryUseCase getTransactionHistoryUseCase,
+            @Qualifier("getTransactionHistoryHandler") GetTransactionHistoryUseCase getTransactionHistoryUseCase,
             WalletPolicyRepository policyRepo) {
         this.createWalletUseCase = createWalletUseCase;
         this.getWalletUseCase = getWalletUseCase;
         this.creditWalletUseCase = creditWalletUseCase;
         this.debitWalletUseCase = debitWalletUseCase;
+        this.confirmOtpUseCase = confirmOtpUseCase;
         this.freezeWalletUseCase = freezeWalletUseCase;
         this.unfreezeWalletUseCase = unfreezeWalletUseCase;
         this.getTransactionHistoryUseCase = getTransactionHistoryUseCase;
@@ -58,6 +64,7 @@ public class WalletController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("@memberOwnershipValidator.isOwnerOrAdmin(#memberId.toString())")
     public Mono<WalletResponse> createWallet(
             @PathVariable UUID memberId,
             @Valid @RequestBody CreateWalletRequest request) {
@@ -70,6 +77,7 @@ public class WalletController {
     }
 
     @GetMapping
+    @PreAuthorize("@memberOwnershipValidator.isOwnerOrAdmin(#memberId.toString())")
     public Mono<WalletResponse> getWallet(@PathVariable UUID memberId) {
         UserId userId = UserId.of(memberId.toString());
         return TenantContextHolder.getTenantId()
@@ -79,6 +87,7 @@ public class WalletController {
     }
 
     @PostMapping("/credit")
+    @PreAuthorize("hasRole('TENANT_ADMIN')")
     public Mono<WalletResponse> credit(
             @PathVariable UUID memberId,
             @Valid @RequestBody CreditRequest request) {
@@ -92,18 +101,34 @@ public class WalletController {
     }
 
     @PostMapping("/debit")
-    public Mono<WalletResponse> debit(
+    @PreAuthorize("@memberOwnershipValidator.isOwnerOrAdmin(#memberId.toString())")
+    public Mono<DebitResponse> debit(
             @PathVariable UUID memberId,
             @Valid @RequestBody DebitRequest request) {
         UserId userId = UserId.of(memberId.toString());
         return TenantContextHolder.getTenantId()
                 .flatMap(tenantId -> debitWalletUseCase.debit(
-                        tenantId, userId, request.amount(), request.description(), request.orderReference(), null)
+                        tenantId, userId, request.amount(), request.description(),
+                        request.orderReference(), request.idempotencyKey())
+                        .flatMap(result -> policyRepo.findByTenant(tenantId)
+                                .map(policy -> DebitResponse.from(result, policy))));
+    }
+
+    @PostMapping("/confirm-otp")
+    @PreAuthorize("@memberOwnershipValidator.isOwnerOrAdmin(#memberId.toString())")
+    public Mono<WalletResponse> confirmOtp(
+            @PathVariable UUID memberId,
+            @Valid @RequestBody ConfirmOtpRequest request) {
+        UserId userId = UserId.of(memberId.toString());
+        return TenantContextHolder.getTenantId()
+                .flatMap(tenantId -> confirmOtpUseCase.confirmOtp(
+                        tenantId, userId, request.challengeId(), request.otpCode(), request.idempotencyKey())
                         .flatMap(result -> policyRepo.findByTenant(tenantId)
                                 .map(policy -> WalletResponse.from(result.updatedWallet(), policy))));
     }
 
     @PostMapping("/freeze")
+    @PreAuthorize("hasRole('TENANT_ADMIN')")
     public Mono<WalletResponse> freeze(
             @PathVariable UUID memberId,
             @Valid @RequestBody FreezeRequest request) {
@@ -115,6 +140,7 @@ public class WalletController {
     }
 
     @PostMapping("/unfreeze")
+    @PreAuthorize("hasRole('TENANT_ADMIN')")
     public Mono<WalletResponse> unfreeze(@PathVariable UUID memberId) {
         UserId userId = UserId.of(memberId.toString());
         return TenantContextHolder.getTenantId()
@@ -124,6 +150,7 @@ public class WalletController {
     }
 
     @GetMapping("/transactions")
+    @PreAuthorize("@memberOwnershipValidator.isOwnerOrAdmin(#memberId.toString())")
     public Flux<WalletTransactionResponse> getTransactions(
             @PathVariable UUID memberId,
             @RequestParam(required = false) String type,

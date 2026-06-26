@@ -1,0 +1,54 @@
+package com.yowyob.loyalty.infrastructure.persistence.promo.adapter;
+
+import com.yowyob.loyalty.domain.promo.model.PromoCampaign;
+import com.yowyob.loyalty.domain.promo.port.out.PromoCampaignRepository;
+import com.yowyob.loyalty.domain.shared.model.TenantId;
+import com.yowyob.loyalty.infrastructure.persistence.promo.mapper.PromoMapper;
+import com.yowyob.loyalty.infrastructure.persistence.promo.repository.PromoCampaignR2dbcRepository;
+import org.springframework.stereotype.Component;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
+
+import java.util.UUID;
+
+@Component
+public class PromoCampaignRepositoryAdapter implements PromoCampaignRepository {
+
+    private final PromoCampaignR2dbcRepository r2dbcRepo;
+    private final PromoMapper mapper;
+
+    public PromoCampaignRepositoryAdapter(PromoCampaignR2dbcRepository r2dbcRepo, PromoMapper mapper) {
+        this.r2dbcRepo = r2dbcRepo;
+        this.mapper = mapper;
+    }
+
+    @Override
+    public Mono<PromoCampaign> save(PromoCampaign campaign) {
+        return r2dbcRepo.save(mapper.toEntity(campaign)).map(mapper::toDomain);
+    }
+
+    @Override
+    public Mono<PromoCampaign> findById(TenantId tenantId, UUID id) {
+        return r2dbcRepo.findByIdAndTenantId(id, tenantId.value()).map(mapper::toDomain);
+    }
+
+    @Override
+    public Mono<PromoCampaign> findByCode(TenantId tenantId, String code) {
+        return r2dbcRepo.findByTenantIdAndCode(tenantId.value(), code.toUpperCase().trim()).map(mapper::toDomain);
+    }
+
+    @Override
+    public Flux<PromoCampaign> findAll(TenantId tenantId) {
+        return r2dbcRepo.findAllByTenantId(tenantId.value()).map(mapper::toDomain);
+    }
+
+    @Override
+    public Flux<PromoCampaign> findActive(TenantId tenantId) {
+        return r2dbcRepo.findAllByTenantIdAndActive(tenantId.value(), true).map(mapper::toDomain);
+    }
+
+    @Override
+    public Mono<Void> deleteById(TenantId tenantId, UUID id) {
+        return r2dbcRepo.deleteByIdAndTenantId(id, tenantId.value());
+    }
+}

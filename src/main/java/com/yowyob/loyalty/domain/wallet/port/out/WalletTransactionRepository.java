@@ -12,6 +12,7 @@ import java.util.UUID;
 
 public interface WalletTransactionRepository {
     Mono<WalletTransaction> save(WalletTransaction transaction);
+    Mono<WalletTransaction> findById(UUID id);
     Mono<WalletTransaction> findByIdempotencyKey(String key);
     Flux<WalletTransaction> findByWalletId(UUID walletId, int page, int size);
     Flux<WalletTransaction> findByWalletIdAndFilters(UUID walletId, TransactionType type, TransactionSource source, Instant from, Instant to, int page, int size);

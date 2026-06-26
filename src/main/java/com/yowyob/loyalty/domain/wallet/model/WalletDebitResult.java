@@ -6,5 +6,6 @@ public record WalletDebitResult(
     Wallet updatedWallet,
     BigDecimal amountDebited,
     BigDecimal newBalance,
-    boolean otpRequired
+    boolean otpRequired,
+    String challengeId
 ) {}

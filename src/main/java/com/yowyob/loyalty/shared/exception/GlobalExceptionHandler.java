@@ -2,6 +2,7 @@ package com.yowyob.loyalty.shared.exception;
 
 import com.yowyob.loyalty.api.shared.dto.ProblemDetails;
 import com.yowyob.loyalty.domain.bonification.exception.BonificationException;
+import com.yowyob.loyalty.domain.promo.exception.*;
 import java.time.Instant;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -64,6 +65,31 @@ public class GlobalExceptionHandler {
         );
 
         return Mono.just(ResponseEntity.status(HttpStatus.BAD_REQUEST).body(problemDetails));
+    }
+
+    @ExceptionHandler(PromoDomainException.class)
+    public Mono<ResponseEntity<ProblemDetails>> handlePromoDomainException(PromoDomainException ex, ServerWebExchange exchange) {
+        String requestId = extractRequestId(exchange);
+        ErrorCode code;
+        if (ex instanceof PromoCampaignNotFoundException) code = ErrorCode.PROMO_CAMPAIGN_NOT_FOUND;
+        else if (ex instanceof PromoNotActiveException)    code = ErrorCode.PROMO_NOT_ACTIVE;
+        else if (ex instanceof PromoNotStartedException)   code = ErrorCode.PROMO_NOT_STARTED;
+        else if (ex instanceof PromoExpiredException)      code = ErrorCode.PROMO_EXPIRED;
+        else if (ex instanceof PromoExhaustedException)    code = ErrorCode.PROMO_EXHAUSTED;
+        else if (ex instanceof PromoAlreadyUsedException)  code = ErrorCode.PROMO_ALREADY_USED;
+        else if (ex instanceof PromoMinOrderAmountException) code = ErrorCode.PROMO_MIN_ORDER_AMOUNT_NOT_MET;
+        else code = ErrorCode.VALIDATION_ERROR;
+
+        ProblemDetails problemDetails = new ProblemDetails(
+                "https://loyalty.yowyob.com/errors/" + code.name().toLowerCase(),
+                code.name(),
+                code.getHttpStatus(),
+                ex.getMessage(),
+                requestId,
+                Instant.now(),
+                null
+        );
+        return Mono.just(ResponseEntity.status(code.getHttpStatus()).body(problemDetails));
     }
 
     @ExceptionHandler(Exception.class)

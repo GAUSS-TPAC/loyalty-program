@@ -7,6 +7,8 @@ import com.yowyob.loyalty.domain.tenant.model.enums.TenantPlan;
 import com.yowyob.loyalty.domain.tenant.port.out.TenantRepository;
 import com.yowyob.loyalty.infrastructure.redis.adapter.TenantCacheAdapter;
 import com.yowyob.loyalty.shared.security.JwtClaimsExtractor;
+import com.yowyob.loyalty.shared.security.JwtTokenValidator;
+import com.yowyob.loyalty.shared.security.JwtValidationResult;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
@@ -14,6 +16,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.mock.http.server.reactive.MockServerHttpRequest;
 import org.springframework.mock.web.server.MockServerWebExchange;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.server.WebFilterChain;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
@@ -28,6 +31,7 @@ public class TenantResolutionFilterTest {
 
     private TenantCacheAdapter tenantCacheAdapter;
     private TenantRepository tenantRepository;
+    private JwtTokenValidator jwtTokenValidator;
     private JwtClaimsExtractor jwtClaimsExtractor;
     private TenantResolutionFilter filter;
 
@@ -35,8 +39,9 @@ public class TenantResolutionFilterTest {
     public void setup() {
         tenantCacheAdapter = Mockito.mock(TenantCacheAdapter.class);
         tenantRepository = Mockito.mock(TenantRepository.class);
+        jwtTokenValidator = Mockito.mock(JwtTokenValidator.class);
         jwtClaimsExtractor = Mockito.mock(JwtClaimsExtractor.class);
-        filter = new TenantResolutionFilter(tenantCacheAdapter, tenantRepository, jwtClaimsExtractor);
+        filter = new TenantResolutionFilter(tenantCacheAdapter, tenantRepository, jwtTokenValidator, jwtClaimsExtractor);
     }
 
     @Test
@@ -65,8 +70,10 @@ public class TenantResolutionFilterTest {
     public void testValidTokenResolvesTenantContext() throws Exception {
         TenantId tenantId = TenantId.of(UUID.randomUUID());
         Tenant tenant = Tenant.create(tenantId, "Test", "test", TenantPlan.PRO, TenantConfig.defaults(), "admin").activate();
-        
-        when(jwtClaimsExtractor.extractTenantIdFromRawToken("valid-token")).thenReturn(tenantId);
+        Jwt mockJwt = Mockito.mock(Jwt.class);
+
+        when(jwtTokenValidator.validateToken("valid-token")).thenReturn(Mono.just(JwtValidationResult.valid(mockJwt)));
+        when(jwtClaimsExtractor.extractTenantId(mockJwt)).thenReturn(tenantId);
         when(tenantCacheAdapter.findById(tenantId)).thenReturn(Mono.just(tenant));
 
         MockServerHttpRequest request = MockServerHttpRequest.get("/api/secure")

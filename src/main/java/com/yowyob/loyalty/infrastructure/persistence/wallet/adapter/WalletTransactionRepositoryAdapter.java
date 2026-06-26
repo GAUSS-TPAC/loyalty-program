@@ -36,6 +36,11 @@ public class WalletTransactionRepositoryAdapter implements WalletTransactionRepo
     }
 
     @Override
+    public Mono<WalletTransaction> findById(UUID id) {
+        return repository.findById(id).map(mapper::toDomain);
+    }
+
+    @Override
     public Mono<WalletTransaction> findByIdempotencyKey(String key) {
         return repository.findByIdempotencyKey(key).map(mapper::toDomain);
     }

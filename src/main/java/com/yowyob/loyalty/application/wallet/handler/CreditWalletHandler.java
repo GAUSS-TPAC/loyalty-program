@@ -7,13 +7,17 @@ import com.yowyob.loyalty.domain.wallet.model.WalletCreditResult;
 import com.yowyob.loyalty.domain.wallet.port.in.CreditWalletUseCase;
 import com.yowyob.loyalty.domain.wallet.port.out.IdempotencyPort;
 import com.yowyob.loyalty.domain.wallet.service.WalletDomainService;
+import com.yowyob.loyalty.shared.exception.IdempotencyConflictException;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
+
 import java.math.BigDecimal;
 import java.time.Duration;
 
 @Service
 public class CreditWalletHandler implements CreditWalletUseCase {
+
+    private static final Duration IDEMPOTENCY_TTL = Duration.ofHours(24);
 
     private final WalletDomainService domainService;
     private final IdempotencyPort idempotency;
@@ -24,9 +28,19 @@ public class CreditWalletHandler implements CreditWalletUseCase {
     }
 
     @Override
-    public Mono<WalletCreditResult> credit(TenantId tenantId, UserId memberId, BigDecimal amount, TransactionSource source, String referenceId, String idempotencyKey) {
-        // En vrai ici on devrait sérialiser le résultat pour le cache d'idempotence
-        // Pour faire simple et respecter le guide, on délègue au service
-        return domainService.credit(tenantId, memberId, amount, source, referenceId, idempotencyKey);
+    public Mono<WalletCreditResult> credit(TenantId tenantId, UserId memberId, BigDecimal amount,
+                                            TransactionSource source, String referenceId, String idempotencyKey) {
+        if (idempotencyKey == null || idempotencyKey.isBlank()) {
+            return domainService.credit(tenantId, memberId, amount, source, referenceId, null);
+        }
+
+        String tenantStr = tenantId.value().toString();
+        return idempotency.registerIfAbsent(idempotencyKey, tenantStr, IDEMPOTENCY_TTL, "PROCESSING")
+                .flatMap(registered -> {
+                    if (!registered) {
+                        return Mono.error(new IdempotencyConflictException(idempotencyKey));
+                    }
+                    return domainService.credit(tenantId, memberId, amount, source, referenceId, idempotencyKey);
+                });
     }
 }

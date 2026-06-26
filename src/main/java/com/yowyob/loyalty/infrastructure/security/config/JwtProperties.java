@@ -9,7 +9,7 @@ public class JwtProperties {
     private String issuerUri;
     private String jwkSetUri;
     private String audience;
-    private String tenantIdClaim = "tenant_id";
+    private String tenantIdClaim = "organization_id";
     private String userIdClaim = "sub";
     private String rolesClaim = "roles";
     private String scopesClaim = "scope";

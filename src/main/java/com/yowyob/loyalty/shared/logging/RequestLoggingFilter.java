@@ -17,12 +17,15 @@ public class RequestLoggingFilter implements WebFilter {
 
     private static final Logger log = LoggerFactory.getLogger(RequestLoggingFilter.class);
 
+    private static final java.util.regex.Pattern REQUEST_ID_PATTERN =
+            java.util.regex.Pattern.compile("^[a-zA-Z0-9\\-]{1,64}$");
+
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, WebFilterChain chain) {
-        String requestId = exchange.getRequest().getHeaders().getFirst("X-Request-Id");
-        if (requestId == null || requestId.isBlank()) {
-            requestId = UUID.randomUUID().toString();
-        }
+        String incomingId = exchange.getRequest().getHeaders().getFirst("X-Request-Id");
+        String requestId = (incomingId != null && REQUEST_ID_PATTERN.matcher(incomingId).matches())
+                ? incomingId
+                : UUID.randomUUID().toString();
         
         final String finalRequestId = requestId;
         exchange.getAttributes().put("requestId", finalRequestId);

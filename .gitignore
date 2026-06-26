@@ -1,6 +1,11 @@
 HELP.md
 target/
 .mvn/wrapper/maven-wrapper.jar
+
+### Secrets — never commit real credentials ###
+.env
+.env.local
+.env.*.local
 !**/src/main/**/target/
 !**/src/test/**/target/
 

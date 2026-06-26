@@ -128,7 +128,7 @@ public class WalletDomainService implements
             .flatMap(wallet -> {
                 wallet.freeze(reason);
                 return walletRepo.save(wallet)
-                    .then(auditRepo.log(wallet.getId(), "FREEZE", actorId, reason, Map.of()))
+                    .then(auditRepo.log(wallet.getId(), tenantId, "FREEZE", actorId, reason, Map.of()))
                     .then(eventPublisher.publish(new WalletFrozenEvent(
                         UUID.randomUUID(), tenantId, wallet.getId(), reason, Instant.now()
                     )))
@@ -142,7 +142,7 @@ public class WalletDomainService implements
             .flatMap(wallet -> {
                 wallet.unfreeze();
                 return walletRepo.save(wallet)
-                    .then(auditRepo.log(wallet.getId(), "UNFREEZE", actorId, "Dégel manuel", Map.of()))
+                    .then(auditRepo.log(wallet.getId(), tenantId, "UNFREEZE", actorId, "Dégel manuel", Map.of()))
                     .then(eventPublisher.publish(new WalletUnfrozenEvent(
                         UUID.randomUUID(), tenantId, wallet.getId(), Instant.now()
                     )))
@@ -168,11 +168,20 @@ public class WalletDomainService implements
 
     @Override
     public Mono<WalletTransaction> reverse(TenantId tenantId, UUID transactionId, String reason, String actorId, String idempotencyKey) {
-        // En attente d'implémentation complète pour reversal si besoin, mais basique :
-        // 1. Charge tx originale.
-        // 2. Vérifie non déjà reversée.
-        // 3. Crée tx REVERSAL.
-        // 4. Met à jour solde wallet.
-        return Mono.error(new UnsupportedOperationException("Reversal logic to be finalized"));
+        return txRepo.findById(transactionId)
+            .switchIfEmpty(Mono.error(new WalletDomainException("Transaction introuvable: " + transactionId)))
+            .flatMap(original -> {
+                if (original.reversalOf() != null || original.status() == TransactionStatus.REVERSED) {
+                    return Mono.error(new WalletDomainException("Transaction déjà reversée"));
+                }
+                return walletRepo.findById(original.walletId())
+                    .flatMap(wallet -> {
+                        WalletTransaction reversal = wallet.applyReversal(original, idempotencyKey);
+                        return walletRepo.save(wallet)
+                            .then(txRepo.save(reversal))
+                            .then(auditRepo.log(wallet.getId(), tenantId, "REVERSAL", actorId, reason, Map.of("originalTxId", transactionId.toString())))
+                            .thenReturn(reversal);
+                    });
+            });
     }
 }

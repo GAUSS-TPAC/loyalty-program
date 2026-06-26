@@ -6,6 +6,7 @@ import com.yowyob.loyalty.domain.wallet.exception.WalletDomainException;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -74,7 +75,7 @@ public class Wallet {
             this.updatedAt = Instant.now();
         }
         
-        return new WalletDebitResult(this, amount, this.balance, otpRequired);
+        return new WalletDebitResult(this, amount, this.balance, otpRequired, null);
     }
 
     public Wallet freeze(String reason) {
@@ -122,6 +123,28 @@ public class Wallet {
         this.version++;
         this.updatedAt = Instant.now();
         return this;
+    }
+
+    public WalletTransaction applyReversal(WalletTransaction original, String idempotencyKey) {
+        if (status.isFinal()) {
+            throw new WalletDomainException("Wallet fermé, reversal impossible");
+        }
+        BigDecimal balanceBefore = this.balance;
+        if (original.type().isDebit()) {
+            this.balance = this.balance.add(original.amount());
+        } else {
+            if (this.balance.compareTo(original.amount()) < 0) {
+                throw new WalletDomainException("Solde insuffisant pour reversal de crédit");
+            }
+            this.balance = this.balance.subtract(original.amount());
+        }
+        this.version++;
+        this.updatedAt = Instant.now();
+        return new WalletTransaction(
+            UUID.randomUUID(), this.id, this.tenantId, TransactionType.REVERSAL,
+            original.amount(), balanceBefore, this.balance, TransactionStatus.COMPLETED,
+            original.source(), idempotencyKey, null, original.id(), Map.of(), Instant.now()
+        );
     }
 
     // Getters

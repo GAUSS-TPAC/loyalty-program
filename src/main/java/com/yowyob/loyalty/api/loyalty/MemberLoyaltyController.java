@@ -8,6 +8,7 @@ import com.yowyob.loyalty.domain.loyalty.port.in.GetMemberTierUseCase;
 import com.yowyob.loyalty.domain.shared.model.UserId;
 import com.yowyob.loyalty.shared.multitenancy.TenantContextHolder;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -31,6 +32,7 @@ public class MemberLoyaltyController {
     }
 
     @GetMapping("/points")
+    @PreAuthorize("@memberOwnershipValidator.isOwnerOrAdmin(#memberId.toString())")
     public Mono<PointsAccountResponse> getPoints(@PathVariable UUID memberId) {
         return TenantContextHolder.getTenantId()
                 .map(tenantId -> {
@@ -42,6 +44,7 @@ public class MemberLoyaltyController {
     }
 
     @GetMapping("/points/history")
+    @PreAuthorize("@memberOwnershipValidator.isOwnerOrAdmin(#memberId.toString())")
     public Flux<PointsTransactionResponse> getPointsHistory(
             @PathVariable UUID memberId,
             @RequestParam(defaultValue = "0") int page,
@@ -54,6 +57,7 @@ public class MemberLoyaltyController {
     }
 
     @GetMapping("/tier")
+    @PreAuthorize("@memberOwnershipValidator.isOwnerOrAdmin(#memberId.toString())")
     public Mono<MemberTierResponse> getTier(@PathVariable UUID memberId) {
         return TenantContextHolder.getTenantId()
                 .map(tenantId -> MemberTierResponse.from(

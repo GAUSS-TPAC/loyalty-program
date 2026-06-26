@@ -6,7 +6,8 @@ import jakarta.validation.constraints.NotBlank;
 import java.math.BigDecimal;
 
 public record DebitRequest(
-    @NotNull @Positive BigDecimal amount, 
-    @NotBlank String description, 
-    @NotBlank String orderReference
+    @NotNull @Positive BigDecimal amount,
+    @NotBlank String description,
+    @NotBlank String orderReference,
+    String idempotencyKey
 ) {}
