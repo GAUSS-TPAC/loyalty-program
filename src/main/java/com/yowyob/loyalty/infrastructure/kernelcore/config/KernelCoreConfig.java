@@ -1,5 +1,6 @@
 package com.yowyob.loyalty.infrastructure.kernelcore.config;
 
+import com.yowyob.loyalty.infrastructure.kernelcore.adapter.KernelCoreActorAdapter;
 import com.yowyob.loyalty.infrastructure.kernelcore.adapter.KernelCoreTenantAdapter;
 import com.yowyob.loyalty.infrastructure.kernelcore.adapter.KernelCoreTokenService;
 import com.yowyob.loyalty.infrastructure.redis.adapter.TenantCacheAdapter;
@@ -14,6 +15,10 @@ import reactor.netty.http.client.HttpClient;
 
 import java.time.Duration;
 
+/**
+ * Kernel Core exige X-Client-Id + X-Api-Key sur tous les appels (server-to-server),
+ * le Bearer JWT s'ajoutant par-dessus pour les endpoints liés à l'utilisateur courant (ex: /api/actors/me).
+ */
 @Configuration
 @EnableConfigurationProperties(KernelCoreProperties.class)
 public class KernelCoreConfig {
@@ -30,6 +35,8 @@ public class KernelCoreConfig {
         return WebClient.builder()
                 .baseUrl(baseUrl)
                 .clientConnector(new ReactorClientHttpConnector(httpClient))
+                .defaultHeader("X-Client-Id", properties.getServiceClientId())
+                .defaultHeader("X-Api-Key", properties.getServiceClientSecret())
                 .build();
     }
 
@@ -44,5 +51,11 @@ public class KernelCoreConfig {
             KernelCoreTokenService kernelCoreTokenService,
             TenantCacheAdapter tenantCacheAdapter) {
         return new KernelCoreTenantAdapter(kernelCoreWebClient, kernelCoreTokenService, tenantCacheAdapter);
+    }
+
+    @Bean
+    public KernelCoreActorAdapter kernelCoreActorAdapter(
+            @Qualifier("kernelCoreWebClient") WebClient kernelCoreWebClient) {
+        return new KernelCoreActorAdapter(kernelCoreWebClient);
     }
 }

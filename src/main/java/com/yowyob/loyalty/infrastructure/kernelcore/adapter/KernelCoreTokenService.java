@@ -28,6 +28,8 @@ public class KernelCoreTokenService {
         this.props = props;
         this.tokenWebClient = WebClient.builder()
                 .defaultHeader("Content-Type", MediaType.APPLICATION_FORM_URLENCODED_VALUE)
+                .defaultHeader("X-Client-Id", props.getServiceClientId())
+                .defaultHeader("X-Api-Key", props.getServiceClientSecret())
                 .build();
     }
 
