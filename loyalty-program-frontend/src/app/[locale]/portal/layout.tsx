@@ -8,7 +8,7 @@ import { useTranslations } from "next-intl";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 
 export default function PortalLayout({ children }: { children: React.ReactNode }) {
-  const [apiKey, setApiKey] = useState<string | null>(null);
+  const [authToken, setAuthToken] = useState<string | null>(null);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
@@ -17,12 +17,12 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
   const tHeader = useTranslations("Header");
 
   useEffect(() => {
-    const key = sessionStorage.getItem("loyalty_api_key");
-    if (!key) {
+    const token = sessionStorage.getItem("loyalty_jwt_token");
+    if (!token) {
       router.push("/");
     } else {
       // eslint-disable-next-line
-      setTimeout(() => setApiKey(key), 0);
+      setTimeout(() => setAuthToken(token), 0);
     }
   }, [router]);
 
@@ -32,11 +32,11 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
   }, [pathname]);
 
   const handleLogout = () => {
-    sessionStorage.removeItem("loyalty_api_key");
+    sessionStorage.removeItem("loyalty_jwt_token");
     router.push("/");
   };
 
-  if (!apiKey) return <div className="min-h-screen bg-background" />;
+  if (!authToken) return <div className="min-h-screen bg-background" />;
 
   const navItems = [
     { name: tNav("overview"), href: "/portal", exact: true, icon: LayoutDashboard },
@@ -79,8 +79,8 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
         </div>
 
         <div className="p-6 pt-4 pb-4 border-b border-border">
-          <div className="text-xs text-muted-foreground truncate bg-muted px-2 py-1 rounded-md border border-border" title={apiKey || ""}>
-            {tSide("key")}{apiKey ? `${apiKey.substring(0, 14)}...` : ""}
+          <div className="text-xs text-muted-foreground truncate bg-muted px-2 py-1 rounded-md border border-border" title={authToken || ""}>
+            {tSide("key")}{authToken ? `${authToken.substring(0, 14)}...` : ""}
           </div>
         </div>
 

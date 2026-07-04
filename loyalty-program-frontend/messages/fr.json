@@ -4,28 +4,15 @@
     "description": "Configurez les règles et les établissements de façon programmatique."
   },
   "Login": {
-    "organizationAccess": "Accès Organisation",
-    "description": "Saisissez votre clé API pour configurer les règles de votre programme de fidélité et vos établissements.",
-    "apiKeyLabel": "Clé API",
-    "apiKeyPlaceholder": "sk_live_...",
+    "adminDescription": "Connectez-vous avec votre compte administrateur de tenant pour gérer votre programme de fidélité.",
     "authenticating": "Authentification...",
     "accessDashboard": "Accéder au tableau de bord",
     "footer": "LOYALTY ENGINE V1.0",
     "loginTitle": "Connexion à votre compte",
-    "usernameLabel": "Nom d'utilisateur ou E-mail",
     "passwordLabel": "Mot de passe",
     "passwordPlaceholder": "••••••••",
-    "loginWithApiKey": "Connexion Clé API",
-    "loginWithCredentials": "Connexion Identifiants",
-    "registerLink": "Pas encore de compte ? S'inscrire",
-    "alreadyHaveAccount": "Déjà un compte ? Se connecter",
-    "registerTitle": "Créer votre compte",
-    "registerButton": "S'inscrire",
-    "nameLabel": "Nom complet",
-    "namePlaceholder": "Jean Dupont",
     "emailLabel": "Adresse email",
-    "emailPlaceholder": "jean.dupont@example.com",
-    "referredByAlert": "Vous vous inscrivez via un lien de parrainage de : {ref}"
+    "emailPlaceholder": "jean.dupont@example.com"
   },
   "Navigation": {
     "overview": "Vue d'ensemble",
@@ -226,9 +213,9 @@
   "Developer": {
     "loyaltyCore": "Portail Développeur",
     "tokenGateTitle": "Accès Développeur",
-    "tokenGateDescription": "Collez votre jeton d'accès administrateur du tenant pour gérer les clés API, les webhooks et les paramètres d'intégration.",
-    "tokenLabel": "Jeton d'accès",
-    "tokenPlaceholder": "eyJhbGciOi...",
+    "tokenGateDescription": "Saisissez votre clé API tenant pour gérer les webhooks, consulter les journaux de livraison et essayer le bac à sable.",
+    "tokenLabel": "Clé API",
+    "tokenPlaceholder": "lk_live_...",
     "unlock": "Déverrouiller le Portail Développeur",
     "disconnect": "Se déconnecter",
     "navDashboard": "Tableau de bord",

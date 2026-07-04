@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { FlaskConical, AlertTriangle, Send } from "lucide-react";
 import { useApiKeys } from "@/hooks/useBackend";
-import { eventsApi } from "@/lib/api";
+import { devEventsApi } from "@/lib/api";
 
 export default function SandboxPage() {
   const t = useTranslations("Developer");
@@ -22,7 +22,7 @@ export default function SandboxPage() {
     setSending(true);
     setResult(null);
     try {
-      const response = await eventsApi.processEvent({
+      const response = await devEventsApi.processEvent({
         eventType,
         memberId,
         amount: amount ? Number(amount) : undefined,

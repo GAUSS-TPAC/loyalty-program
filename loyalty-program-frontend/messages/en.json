@@ -4,28 +4,15 @@
     "description": "Configure rules and establishments programmatically."
   },
   "Login": {
-    "organizationAccess": "Organization Access",
-    "description": "Enter your API Key to configure your loyalty program rules and establishments.",
-    "apiKeyLabel": "API Key",
-    "apiKeyPlaceholder": "sk_live_...",
+    "adminDescription": "Sign in with your tenant administrator account to manage your loyalty program.",
     "authenticating": "Authenticating...",
     "accessDashboard": "Access Dashboard",
     "footer": "LOYALTY ENGINE V1.0",
     "loginTitle": "Sign in to your account",
-    "usernameLabel": "Username or Email",
     "passwordLabel": "Password",
     "passwordPlaceholder": "••••••••",
-    "loginWithApiKey": "API Key Login",
-    "loginWithCredentials": "Credentials Login",
-    "registerLink": "Don't have an account? Sign up",
-    "alreadyHaveAccount": "Already have an account? Sign in",
-    "registerTitle": "Create your account",
-    "registerButton": "Sign up",
-    "nameLabel": "Full Name",
-    "namePlaceholder": "John Doe",
     "emailLabel": "Email Address",
-    "emailPlaceholder": "john.doe@example.com",
-    "referredByAlert": "You are signing up via referral link from: {ref}"
+    "emailPlaceholder": "john.doe@example.com"
   },
   "Navigation": {
     "overview": "Overview",
@@ -226,9 +213,9 @@
   "Developer": {
     "loyaltyCore": "Developer Portal",
     "tokenGateTitle": "Developer Access",
-    "tokenGateDescription": "Paste your tenant admin access token to manage API keys, webhooks and integration settings.",
-    "tokenLabel": "Access Token",
-    "tokenPlaceholder": "eyJhbGciOi...",
+    "tokenGateDescription": "Enter your tenant API key to manage webhooks, view delivery logs and try the sandbox.",
+    "tokenLabel": "API Key",
+    "tokenPlaceholder": "lk_live_...",
     "unlock": "Unlock Developer Portal",
     "disconnect": "Disconnect",
     "navDashboard": "Dashboard",

@@ -17,18 +17,18 @@ import {
 import { useTranslations } from "next-intl";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 
-const TOKEN_KEY = "loyalty_jwt_token";
+const API_KEY_STORAGE_KEY = "loyalty_dev_api_key";
 
 export default function DeveloperLayout({ children }: { children: React.ReactNode }) {
-  const [token, setToken] = useState<string | null>(null);
-  const [tokenInput, setTokenInput] = useState("");
+  const [apiKey, setApiKey] = useState<string | null>(null);
+  const [apiKeyInput, setApiKeyInput] = useState("");
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [checked, setChecked] = useState(false);
   const pathname = usePathname();
   const t = useTranslations("Developer");
 
   useEffect(() => {
-    setToken(sessionStorage.getItem(TOKEN_KEY));
+    setApiKey(sessionStorage.getItem(API_KEY_STORAGE_KEY));
     setChecked(true);
   }, []);
 
@@ -38,22 +38,22 @@ export default function DeveloperLayout({ children }: { children: React.ReactNod
 
   const handleUnlock = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!tokenInput.trim()) return;
-    sessionStorage.setItem(TOKEN_KEY, tokenInput.trim());
-    setToken(tokenInput.trim());
+    if (!apiKeyInput.trim()) return;
+    sessionStorage.setItem(API_KEY_STORAGE_KEY, apiKeyInput.trim());
+    setApiKey(apiKeyInput.trim());
   };
 
   const handleLogout = () => {
-    sessionStorage.removeItem(TOKEN_KEY);
-    setToken(null);
-    setTokenInput("");
+    sessionStorage.removeItem(API_KEY_STORAGE_KEY);
+    setApiKey(null);
+    setApiKeyInput("");
   };
 
   if (!checked) {
     return <div className="min-h-screen bg-background" />;
   }
 
-  if (!token) {
+  if (!apiKey) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-6">
         <form
@@ -71,8 +71,8 @@ export default function DeveloperLayout({ children }: { children: React.ReactNod
             <label className="text-xs font-medium text-muted-foreground">{t("tokenLabel")}</label>
             <input
               type="password"
-              value={tokenInput}
-              onChange={(e) => setTokenInput(e.target.value)}
+              value={apiKeyInput}
+              onChange={(e) => setApiKeyInput(e.target.value)}
               placeholder={t("tokenPlaceholder")}
               className="w-full px-3 py-2 text-sm rounded-md border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
             />
