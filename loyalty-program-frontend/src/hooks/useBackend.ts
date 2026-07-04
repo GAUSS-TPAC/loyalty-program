@@ -14,6 +14,8 @@ import {
     rulesApi,
     bonificationApi,
     systemApi,
+    apiKeyApi,
+    webhookApi,
     type WalletResponse,
     type PointsAccountResponse,
     type MemberTierResponse,
@@ -22,6 +24,9 @@ import {
     type RuleResponse,
     type BonificationStatusResponse,
     type HealthResponse,
+    type ApiKeyResponse,
+    type WebhookEndpointResponse,
+    type WebhookDeliveryResponse,
 } from "@/lib/api";
 
 // ─── Générique ───────────────────────────────────────────────────────────────
@@ -127,4 +132,24 @@ export function useBonificationStatus(): UseQueryResult<BonificationStatusRespon
 /** Retourne la santé du backend */
 export function useBackendHealth(): UseQueryResult<HealthResponse> {
     return useQuery(() => systemApi.health());
+}
+
+// ─── Hooks Developer Portal ───────────────────────────────────────────────────
+
+/** Retourne les clés API du tenant */
+export function useApiKeys(): UseQueryResult<ApiKeyResponse[]> {
+    return useQuery(() => apiKeyApi.list());
+}
+
+/** Retourne les webhooks du tenant */
+export function useWebhooks(): UseQueryResult<WebhookEndpointResponse[]> {
+    return useQuery(() => webhookApi.list());
+}
+
+/** Retourne le journal des livraisons webhook du tenant */
+export function useWebhookDeliveries(
+    page = 0,
+    size = 20
+): UseQueryResult<WebhookDeliveryResponse[]> {
+    return useQuery(() => webhookApi.listDeliveries(page, size));
 }

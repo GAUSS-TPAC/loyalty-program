@@ -222,5 +222,32 @@
     "quickActions": "Quick Actions",
     "configureRules": "Configure Rules",
     "viewMembers": "View Members"
+  },
+  "Developer": {
+    "loyaltyCore": "Developer Portal",
+    "tokenGateTitle": "Developer Access",
+    "tokenGateDescription": "Paste your tenant admin access token to manage API keys, webhooks and integration settings.",
+    "tokenLabel": "Access Token",
+    "tokenPlaceholder": "eyJhbGciOi...",
+    "unlock": "Unlock Developer Portal",
+    "disconnect": "Disconnect",
+    "navDashboard": "Dashboard",
+    "navApiKeys": "API Keys",
+    "navWebhooks": "Webhooks",
+    "navLogs": "Delivery Logs",
+    "navDocs": "Documentation",
+    "navSandbox": "Sandbox",
+    "dashboardTitle": "Developer Dashboard",
+    "dashboardDescription": "Overview of your integration: API keys, webhooks and recent activity.",
+    "apiKeysTitle": "API Keys",
+    "apiKeysDescription": "Create and manage the keys your systems use to authenticate against this API (X-Api-Key header).",
+    "webhooksTitle": "Webhooks",
+    "webhooksDescription": "Register callback URLs to receive real-time notifications when events happen in this loyalty program.",
+    "logsTitle": "Delivery Logs",
+    "logsDescription": "History of webhook delivery attempts across all your endpoints.",
+    "docsTitle": "Documentation",
+    "docsDescription": "How to authenticate, subscribe to events, and verify webhook signatures.",
+    "sandboxTitle": "Sandbox",
+    "sandboxDescription": "Use a TEST-mode API key to safely try out the API and your webhook integration."
   }
 }

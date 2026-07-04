@@ -191,6 +191,68 @@ export interface HealthResponse {
     components?: Record<string, { status: string }>;
 }
 
+export type ApiKeyMode = "LIVE" | "TEST";
+
+export interface ApiKeyResponse {
+    id: string;
+    name: string;
+    keyPrefix: string;
+    mode: ApiKeyMode;
+    active: boolean;
+    createdAt: string;
+    lastUsedAt: string | null;
+    rawKey?: string;
+}
+
+export interface CreateApiKeyRequest {
+    name: string;
+    mode?: ApiKeyMode;
+}
+
+export type WebhookDeliveryStatus = "PENDING" | "SUCCEEDED" | "FAILED" | "EXHAUSTED";
+
+export interface WebhookEndpointResponse {
+    id: string;
+    url: string;
+    description: string | null;
+    eventTypes: string[];
+    active: boolean;
+    createdAt: string;
+    updatedAt: string;
+    secret?: string;
+}
+
+export interface CreateWebhookEndpointRequest {
+    url: string;
+    description?: string;
+    eventTypes: string[];
+}
+
+export interface UpdateWebhookEndpointRequest {
+    url?: string;
+    description?: string;
+    eventTypes?: string[];
+    active?: boolean;
+}
+
+export interface WebhookDeliveryResponse {
+    id: string;
+    endpointId: string;
+    eventType: string;
+    status: WebhookDeliveryStatus;
+    httpStatusCode: number | null;
+    responseSnippet: string | null;
+    attemptCount: number;
+    createdAt: string;
+    deliveredAt: string | null;
+}
+
+export interface TestPingResponse {
+    success: boolean;
+    httpStatus: number | null;
+    responseSnippet: string | null;
+}
+
 // ─── API Wallet ──────────────────────────────────────────────────────────────
 
 export const walletApi = {
@@ -274,4 +336,52 @@ export const bonificationApi = {
 export const systemApi = {
     /** GET /actuator/health — Santé de l'application */
     health: () => get<HealthResponse>("/actuator/health"),
+};
+
+// ─── API Clés API (Developer Portal) ─────────────────────────────────────────
+
+export const apiKeyApi = {
+    /** GET /api/v1/admin/api-keys — Lister les clés API du tenant */
+    list: () => get<ApiKeyResponse[]>("/api/v1/admin/api-keys"),
+
+    /** POST /api/v1/admin/api-keys — Créer une clé API (rawKey affichée une seule fois) */
+    create: (data: CreateApiKeyRequest) =>
+        post<ApiKeyResponse>("/api/v1/admin/api-keys", data),
+
+    /** DELETE /api/v1/admin/api-keys/{id} — Révoquer une clé API */
+    revoke: (id: string) =>
+        request<void>("DELETE", `/api/v1/admin/api-keys/${id}`),
+};
+
+// ─── API Webhooks (Developer Portal) ─────────────────────────────────────────
+
+export const webhookApi = {
+    /** GET /api/v1/admin/webhooks — Lister les webhooks du tenant */
+    list: () => get<WebhookEndpointResponse[]>("/api/v1/admin/webhooks"),
+
+    /** POST /api/v1/admin/webhooks — Créer un webhook (secret affiché une seule fois) */
+    create: (data: CreateWebhookEndpointRequest) =>
+        post<WebhookEndpointResponse>("/api/v1/admin/webhooks", data),
+
+    /** PATCH /api/v1/admin/webhooks/{id} — Mettre à jour un webhook */
+    update: (id: string, data: UpdateWebhookEndpointRequest) =>
+        patch<WebhookEndpointResponse>(`/api/v1/admin/webhooks/${id}`, data),
+
+    /** DELETE /api/v1/admin/webhooks/{id} — Supprimer un webhook */
+    remove: (id: string) =>
+        request<void>("DELETE", `/api/v1/admin/webhooks/${id}`),
+
+    /** POST /api/v1/admin/webhooks/{id}/rotate-secret — Régénérer le secret */
+    rotateSecret: (id: string) =>
+        post<WebhookEndpointResponse>(`/api/v1/admin/webhooks/${id}/rotate-secret`, {}),
+
+    /** POST /api/v1/admin/webhooks/{id}/test — Envoyer un ping de test */
+    sendTestPing: (id: string) =>
+        post<TestPingResponse>(`/api/v1/admin/webhooks/${id}/test`, {}),
+
+    /** GET /api/v1/admin/webhooks/deliveries?page=&size= — Journal des livraisons */
+    listDeliveries: (page = 0, size = 20) =>
+        get<WebhookDeliveryResponse[]>(
+            `/api/v1/admin/webhooks/deliveries?page=${page}&size=${size}`
+        ),
 };

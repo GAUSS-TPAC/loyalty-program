@@ -222,5 +222,32 @@
     "quickActions": "Actions Rapides",
     "configureRules": "Configurer les Règles",
     "viewMembers": "Voir les Membres"
+  },
+  "Developer": {
+    "loyaltyCore": "Portail Développeur",
+    "tokenGateTitle": "Accès Développeur",
+    "tokenGateDescription": "Collez votre jeton d'accès administrateur du tenant pour gérer les clés API, les webhooks et les paramètres d'intégration.",
+    "tokenLabel": "Jeton d'accès",
+    "tokenPlaceholder": "eyJhbGciOi...",
+    "unlock": "Déverrouiller le Portail Développeur",
+    "disconnect": "Se déconnecter",
+    "navDashboard": "Tableau de bord",
+    "navApiKeys": "Clés API",
+    "navWebhooks": "Webhooks",
+    "navLogs": "Journal des Livraisons",
+    "navDocs": "Documentation",
+    "navSandbox": "Bac à sable",
+    "dashboardTitle": "Tableau de bord Développeur",
+    "dashboardDescription": "Vue d'ensemble de votre intégration : clés API, webhooks et activité récente.",
+    "apiKeysTitle": "Clés API",
+    "apiKeysDescription": "Créez et gérez les clés utilisées par vos systèmes pour s'authentifier auprès de cette API (en-tête X-Api-Key).",
+    "webhooksTitle": "Webhooks",
+    "webhooksDescription": "Enregistrez des URLs de callback pour recevoir des notifications en temps réel lorsque des événements se produisent dans ce programme de fidélité.",
+    "logsTitle": "Journal des Livraisons",
+    "logsDescription": "Historique des tentatives de livraison webhook pour tous vos points de terminaison.",
+    "docsTitle": "Documentation",
+    "docsDescription": "Comment s'authentifier, s'abonner aux événements et vérifier les signatures des webhooks.",
+    "sandboxTitle": "Bac à sable",
+    "sandboxDescription": "Utilisez une clé API en mode TEST pour essayer l'API et votre intégration webhook en toute sécurité."
   }
 }
