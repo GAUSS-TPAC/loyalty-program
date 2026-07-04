@@ -2,6 +2,7 @@ package com.yowyob.loyalty.infrastructure.persistence.tenant.adapter;
 
 import com.yowyob.loyalty.domain.shared.model.TenantId;
 import com.yowyob.loyalty.domain.tenant.model.ApiKey;
+import com.yowyob.loyalty.domain.tenant.model.enums.ApiKeyMode;
 import com.yowyob.loyalty.domain.tenant.port.out.ApiKeyRepository;
 import com.yowyob.loyalty.infrastructure.persistence.tenant.entity.ApiKeyEntity;
 import com.yowyob.loyalty.infrastructure.persistence.tenant.repository.ApiKeyR2dbcRepository;
@@ -41,8 +42,9 @@ public class ApiKeyRepositoryAdapter implements ApiKeyRepository {
     }
 
     private ApiKey toDomain(ApiKeyEntity e) {
+        ApiKeyMode mode = e.getMode() != null ? ApiKeyMode.valueOf(e.getMode()) : ApiKeyMode.LIVE;
         return new ApiKey(e.getId(), TenantId.of(e.getTenantId()), e.getName(),
-                e.getKeyHash(), e.getKeyPrefix(), e.isActive(), e.getCreatedAt(), e.getLastUsedAt());
+                e.getKeyHash(), e.getKeyPrefix(), mode, e.isActive(), e.getCreatedAt(), e.getLastUsedAt());
     }
 
     private ApiKeyEntity toEntity(ApiKey k) {
@@ -52,6 +54,7 @@ public class ApiKeyRepositoryAdapter implements ApiKeyRepository {
         e.setName(k.name());
         e.setKeyHash(k.keyHash());
         e.setKeyPrefix(k.keyPrefix());
+        e.setMode(k.mode() != null ? k.mode().name() : ApiKeyMode.LIVE.name());
         e.setActive(k.active());
         e.setCreatedAt(k.createdAt());
         e.setLastUsedAt(k.lastUsedAt());

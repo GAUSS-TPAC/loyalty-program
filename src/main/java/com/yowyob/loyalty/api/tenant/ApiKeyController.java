@@ -32,7 +32,7 @@ public class ApiKeyController {
     @Operation(summary = "Créer une clé API", description = "Génère une nouvelle clé API pour le tenant courant. La clé brute n'est affichée qu'une seule fois.")
     public Mono<ApiKeyResponse> create(@Valid @RequestBody CreateApiKeyRequest request) {
         return TenantContextHolder.getTenantId()
-                .flatMap(tenantId -> service.create(tenantId, request.name()))
+                .flatMap(tenantId -> service.create(tenantId, request.name(), request.mode()))
                 .map(created -> ApiKeyResponse.fromCreated(created.record(), created.rawKey()));
     }
 

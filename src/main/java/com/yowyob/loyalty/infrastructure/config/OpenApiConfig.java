@@ -21,6 +21,7 @@ public class OpenApiConfig {
             Environment environment
     ) {
         final String securitySchemeName = "bearerAuth";
+        final String apiKeySchemeName = "apiKeyAuth";
 
         OpenAPI openAPI = new OpenAPI()
                 .info(new Info()
@@ -29,16 +30,24 @@ public class OpenApiConfig {
                         .version("v1")
                         .contact(new Contact().name("Yowyob").email("dev@yowyob.com")))
                 .addServersItem(new Server().url("http://localhost:" + serverPort).description("Local"))
-                .components(new Components().addSecuritySchemes(securitySchemeName,
-                        new SecurityScheme()
-                                .name(securitySchemeName)
-                                .type(SecurityScheme.Type.HTTP)
-                                .scheme("bearer")
-                                .bearerFormat("JWT")
-                                .description("JWT Keycloak/YowAuth0. Claim tenant : organization_id")));
+                .components(new Components()
+                        .addSecuritySchemes(securitySchemeName,
+                                new SecurityScheme()
+                                        .name(securitySchemeName)
+                                        .type(SecurityScheme.Type.HTTP)
+                                        .scheme("bearer")
+                                        .bearerFormat("JWT")
+                                        .description("JWT Keycloak/YowAuth0. Claim tenant : organization_id"))
+                        .addSecuritySchemes(apiKeySchemeName,
+                                new SecurityScheme()
+                                        .name("X-Api-Key")
+                                        .type(SecurityScheme.Type.APIKEY)
+                                        .in(SecurityScheme.In.HEADER)
+                                        .description("Clé API tenant pour l'intégration machine-à-machine (portail développeur)")));
 
         if (!environment.matchesProfiles("dev")) {
             openAPI.addSecurityItem(new SecurityRequirement().addList(securitySchemeName));
+            openAPI.addSecurityItem(new SecurityRequirement().addList(apiKeySchemeName));
         }
         return openAPI;
     }

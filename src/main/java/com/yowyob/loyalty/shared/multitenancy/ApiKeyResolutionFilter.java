@@ -8,17 +8,29 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.ReactiveSecurityContextHolder;
+import org.springframework.security.core.context.SecurityContextImpl;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ServerWebExchange;
 import org.springframework.web.server.WebFilter;
 import org.springframework.web.server.WebFilterChain;
 import reactor.core.publisher.Mono;
 
+import java.util.List;
+
 /**
  * Filtre d'authentification par clé API (X-Api-Key header).
  * Priorité plus basse que TenantResolutionFilter : si un Bearer JWT est présent,
  * TenantResolutionFilter gère la requête en premier.
  * Ce filtre s'active uniquement quand Authorization est absent et X-Api-Key est présent.
+ *
+ * Une clé API valide représente un accès tenant-scopé de niveau administrateur (le
+ * portail développeur s'y connecte pour gérer ses propres clés/webhooks) : ce filtre
+ * lui accorde donc l'autorité ROLE_TENANT_ADMIN, sans quoi tout @PreAuthorize("hasRole(...)")
+ * échouerait pour une requête authentifiée uniquement par clé API.
  */
 @Component
 @Order(-199)
@@ -73,7 +85,12 @@ public class ApiKeyResolutionFilter implements WebFilter {
                 .flatMap(tenant -> {
                     if (!tenant.isActive()) return writeUnauthorized(exchange);
                     TenantContext ctx = TenantContext.from(tenant);
-                    return chain.filter(exchange).contextWrite(TenantContextHolder.withTenantContext(ctx));
+                    Authentication authentication = new UsernamePasswordAuthenticationToken(
+                            "api-key:" + apiKey.id(), null, List.of(new SimpleGrantedAuthority("ROLE_TENANT_ADMIN")));
+                    return chain.filter(exchange)
+                            .contextWrite(TenantContextHolder.withTenantContext(ctx))
+                            .contextWrite(ReactiveSecurityContextHolder.withSecurityContext(
+                                    Mono.just(new SecurityContextImpl(authentication))));
                 });
     }
 

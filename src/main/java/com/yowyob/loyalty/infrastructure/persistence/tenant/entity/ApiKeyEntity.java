@@ -24,6 +24,8 @@ public class ApiKeyEntity {
     @Column("key_prefix")
     private String keyPrefix;
 
+    private String mode;
+
     private boolean active;
 
     @Column("created_at")
@@ -42,6 +44,8 @@ public class ApiKeyEntity {
     public void setKeyHash(String keyHash) { this.keyHash = keyHash; }
     public String getKeyPrefix() { return keyPrefix; }
     public void setKeyPrefix(String keyPrefix) { this.keyPrefix = keyPrefix; }
+    public String getMode() { return mode; }
+    public void setMode(String mode) { this.mode = mode; }
     public boolean isActive() { return active; }
     public void setActive(boolean active) { this.active = active; }
     public Instant getCreatedAt() { return createdAt; }
