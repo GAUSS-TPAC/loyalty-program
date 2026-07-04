@@ -6,7 +6,9 @@ import com.yowyob.loyalty.domain.wallet.model.Wallet;
 import com.yowyob.loyalty.domain.wallet.port.out.WalletRepository;
 import com.yowyob.loyalty.infrastructure.persistence.wallet.mapper.WalletMapper;
 import com.yowyob.loyalty.infrastructure.persistence.wallet.repository.WalletR2dbcRepository;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Component;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import java.util.UUID;
 
@@ -39,5 +41,11 @@ public class WalletRepositoryAdapter implements WalletRepository {
     @Override
     public Mono<Boolean> existsByMemberAndTenant(UserId memberId, TenantId tenantId) {
         return r2dbcRepo.existsByMemberIdAndTenantId(memberId.value(), tenantId.value());
+    }
+
+    @Override
+    public Flux<Wallet> findAllByTenant(TenantId tenantId, int page, int size) {
+        return r2dbcRepo.findByTenantIdOrderByCreatedAtDesc(tenantId.value(), PageRequest.of(page, size))
+                .map(mapper::toDomain);
     }
 }

@@ -19,6 +19,9 @@ import {
     subscriptionApi,
     apiKeyApi,
     webhookApi,
+    adminMembersApi,
+    tierPolicyApi,
+    adminLogsApi,
     type WalletResponse,
     type PointsAccountResponse,
     type MemberTierResponse,
@@ -35,6 +38,9 @@ import {
     type ApiKeyResponse,
     type WebhookEndpointResponse,
     type WebhookDeliveryResponse,
+    type MemberSummaryResponse,
+    type TierPolicyResponse,
+    type PointsTransactionLogResponse,
 } from "@/lib/api";
 
 // ─── Générique ───────────────────────────────────────────────────────────────
@@ -191,4 +197,27 @@ export function useWebhookDeliveries(
     size = 20
 ): UseQueryResult<WebhookDeliveryResponse[]> {
     return useQuery(() => webhookApi.listDeliveries(page, size));
+}
+
+// ─── Hooks Admin (Annuaire Membres / Tier Policy / Logs) ─────────────────────
+
+/** Retourne l'annuaire des membres (portefeuilles) du tenant */
+export function useAdminMembers(
+    page = 0,
+    size = 20
+): UseQueryResult<MemberSummaryResponse[]> {
+    return useQuery(() => adminMembersApi.list(page, size));
+}
+
+/** Retourne la politique de tier (paliers) du tenant */
+export function useTierPolicy(): UseQueryResult<TierPolicyResponse> {
+    return useQuery(() => tierPolicyApi.get());
+}
+
+/** Retourne le journal tenant-wide des transactions de points */
+export function useAdminLogs(
+    page = 0,
+    size = 20
+): UseQueryResult<PointsTransactionLogResponse[]> {
+    return useQuery(() => adminLogsApi.listPointsTransactions(page, size));
 }

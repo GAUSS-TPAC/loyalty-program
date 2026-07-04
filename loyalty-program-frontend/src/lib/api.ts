@@ -68,6 +68,8 @@ const post = <T>(path: string, body: unknown, headers?: HeadersInit) =>
     request<T>("POST", path, body, headers);
 const patch = <T>(path: string, body?: unknown) =>
     request<T>("PATCH", path, body);
+const put = <T>(path: string, body?: unknown) =>
+    request<T>("PUT", path, body);
 
 // Variantes authentifiées par clé API (portail développeur, /developer/*)
 const requestDev = <T>(method: string, path: string, body?: unknown) =>
@@ -119,11 +121,13 @@ export type TierLevel = "BRONZE" | "SILVER" | "GOLD" | "PLATINUM";
 
 export interface PointsTransactionResponse {
     id: string;
-    memberId: string;
-    points: number;
     type: string;
-    description: string;
+    amount: number;
+    balanceAfter: number;
+    source: string;
+    ruleId: string | null;
     createdAt: string;
+    metadata: Record<string, unknown>;
 }
 
 export interface MemberTierResponse {
@@ -308,6 +312,24 @@ export const memberApi = {
     /** GET /api/v1/members/{id}/tier — Niveau de fidélité */
     getTier: (memberId: string) =>
         get<MemberTierResponse>(`/api/v1/members/${memberId}/tier`),
+
+    /** GET /api/v1/members/{id}/wallet — Wallet d'un membre (admin ou propriétaire) */
+    getWallet: (memberId: string) =>
+        get<WalletResponse>(`/api/v1/members/${memberId}/wallet`),
+
+    /** GET /api/v1/members/{id}/wallet/transactions?page=&size= — Historique du wallet */
+    getWalletTransactions: (memberId: string, page = 0, size = 20) =>
+        get<WalletTransaction[]>(
+            `/api/v1/members/${memberId}/wallet/transactions?page=${page}&size=${size}`
+        ),
+
+    /** POST /api/v1/members/{id}/wallet/freeze — Geler le wallet (admin) */
+    freezeWallet: (memberId: string, reason: string) =>
+        post<WalletResponse>(`/api/v1/members/${memberId}/wallet/freeze`, { reason }),
+
+    /** POST /api/v1/members/{id}/wallet/unfreeze — Dégeler le wallet (admin) */
+    unfreezeWallet: (memberId: string) =>
+        post<WalletResponse>(`/api/v1/members/${memberId}/wallet/unfreeze`, {}),
 };
 
 // ─── API Règles de fidélité (Admin) ─────────────────────────────────────────
@@ -597,4 +619,77 @@ export const devEventsApi = {
     /** POST /api/v1/events — Envoyer un événement de test depuis le Sandbox (X-Api-Key) */
     processEvent: (data: IncomingEventRequest) =>
         postDev<EventProcessingResponse>("/api/v1/events", data),
+};
+
+// ─── Types Annuaire Membres / Politique de Tier / Journal (Admin) ────────────
+
+export interface MemberSummaryResponse {
+    memberId: string;
+    balance: number;
+    currencyCode: string;
+    status: string;
+    createdAt: string;
+}
+
+export interface TierThreshold {
+    level: string;
+    threshold: number;
+    multiplier: number;
+}
+
+export interface TierPolicyResponse {
+    tenantId: string;
+    criterion: string;
+    thresholds: TierThreshold[];
+    maintainPeriod: string;
+    maintainThresholdPoints: number;
+    downgradeGraceDays: number;
+}
+
+export interface TierPolicyRequest {
+    criterion: string;
+    thresholds: TierThreshold[];
+    maintainPeriod: string;
+    maintainThresholdPoints: number;
+    downgradeGraceDays: number;
+}
+
+export interface PointsTransactionLogResponse {
+    id: string;
+    pointsAccountId: string;
+    type: string;
+    amount: number;
+    balanceAfter: number;
+    source: string;
+    ruleId: string | null;
+    createdAt: string;
+}
+
+// ─── API Annuaire Membres (Admin) ────────────────────────────────────────────
+
+export const adminMembersApi = {
+    /** GET /api/v1/admin/members?page=&size= — Lister les membres (portefeuilles) du tenant */
+    list: (page = 0, size = 20) =>
+        get<MemberSummaryResponse[]>(`/api/v1/admin/members?page=${page}&size=${size}`),
+};
+
+// ─── API Politique de Tier (Admin — Establishment) ───────────────────────────
+
+export const tierPolicyApi = {
+    /** GET /api/v1/admin/tier-policies — Politique de tier du tenant */
+    get: () => get<TierPolicyResponse>("/api/v1/admin/tier-policies"),
+
+    /** PUT /api/v1/admin/tier-policies — Créer/mettre à jour la politique de tier */
+    upsert: (data: TierPolicyRequest) =>
+        put<TierPolicyResponse>("/api/v1/admin/tier-policies", data),
+};
+
+// ─── API Journal des transactions de points (Admin — Logs) ──────────────────
+
+export const adminLogsApi = {
+    /** GET /api/v1/admin/points-transactions?page=&size= — Journal tenant-wide */
+    listPointsTransactions: (page = 0, size = 20) =>
+        get<PointsTransactionLogResponse[]>(
+            `/api/v1/admin/points-transactions?page=${page}&size=${size}`
+        ),
 };

@@ -17,15 +17,16 @@ import java.util.UUID;
 /**
  * Classe Java pure, pas d'annotation Spring.
  */
-public class WalletDomainService implements 
-    CreditWalletUseCase, 
-    DebitWalletUseCase, 
-    GetWalletUseCase, 
-    GetTransactionHistoryUseCase, 
-    FreezeWalletUseCase, 
-    UnfreezeWalletUseCase, 
-    CreateWalletUseCase, 
-    ReverseTransactionUseCase {
+public class WalletDomainService implements
+    CreditWalletUseCase,
+    DebitWalletUseCase,
+    GetWalletUseCase,
+    GetTransactionHistoryUseCase,
+    FreezeWalletUseCase,
+    UnfreezeWalletUseCase,
+    CreateWalletUseCase,
+    ReverseTransactionUseCase,
+    ListWalletsUseCase {
 
     private final WalletRepository walletRepo;
     private final WalletTransactionRepository txRepo;
@@ -158,6 +159,11 @@ public class WalletDomainService implements
     @Override
     public Mono<BigDecimal> getBalance(TenantId tenantId, UserId memberId) {
         return getWallet(tenantId, memberId).map(Wallet::getBalance);
+    }
+
+    @Override
+    public Flux<Wallet> listWallets(TenantId tenantId, int page, int size) {
+        return walletRepo.findAllByTenant(tenantId, page, size);
     }
 
     @Override

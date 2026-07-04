@@ -7,7 +7,6 @@ import com.yowyob.loyalty.infrastructure.kernelcore.adapter.KernelCoreTokenServi
 import com.yowyob.loyalty.infrastructure.redis.adapter.TenantCacheAdapter;
 import io.netty.channel.ChannelOption;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.client.reactive.ReactorClientHttpConnector;
@@ -19,9 +18,10 @@ import java.time.Duration;
 /**
  * Kernel Core exige X-Client-Id + X-Api-Key sur tous les appels (server-to-server),
  * le Bearer JWT s'ajoutant par-dessus pour les endpoints liés à l'utilisateur courant (ex: /api/actors/me).
+ * KernelCoreProperties est déjà auto-enregistrée via @Component + @ConfigurationProperties,
+ * inutile (et générateur de doublon de bean) de la redéclarer avec @EnableConfigurationProperties ici.
  */
 @Configuration
-@EnableConfigurationProperties(KernelCoreProperties.class)
 public class KernelCoreConfig {
 
     @Bean

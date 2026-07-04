@@ -5,6 +5,7 @@ import com.yowyob.loyalty.domain.loyalty.port.out.PointsTransactionRepository;
 import com.yowyob.loyalty.domain.shared.model.TenantId;
 import com.yowyob.loyalty.infrastructure.persistence.loyalty.mapper.LoyaltyPersistenceMapper;
 import com.yowyob.loyalty.infrastructure.persistence.loyalty.repository.PointsTransactionR2dbcRepository;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -42,5 +43,13 @@ public class PointsTransactionRepositoryAdapter implements PointsTransactionRepo
             return false;
         }
         return Boolean.TRUE.equals(repository.existsByTenantIdAndEventIdempotencyKey(tenantId.value(), idempotencyKey).block());
+    }
+
+    @Override
+    public List<PointsTransaction> findByTenantId(TenantId tenantId, int page, int size) {
+        return repository.findByTenantIdOrderByCreatedAtDesc(tenantId.value(), PageRequest.of(page, size))
+                .map(mapper::toDomain)
+                .collectList()
+                .block();
     }
 }

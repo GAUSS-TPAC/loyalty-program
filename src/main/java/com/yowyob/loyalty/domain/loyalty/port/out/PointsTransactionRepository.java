@@ -10,4 +10,5 @@ public interface PointsTransactionRepository {
     PointsTransaction save(PointsTransaction transaction);
     List<PointsTransaction> findByAccountId(UUID accountId, int limit, int offset);
     boolean existsByEventIdempotencyKey(TenantId tenantId, String idempotencyKey);
+    List<PointsTransaction> findByTenantId(TenantId tenantId, int page, int size);
 }

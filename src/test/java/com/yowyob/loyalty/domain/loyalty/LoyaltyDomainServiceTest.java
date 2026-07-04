@@ -42,7 +42,7 @@ class LoyaltyDomainServiceTest {
         service = new LoyaltyDomainService(engine, new CounterService(), new TierCalculationService(),
                 ruleRepo, pointsRepo, new InMemoryPointsTransactionRepository(), counterRepo,
                 new InMemoryMemberTierRepository(), new InMemoryTierPolicyRepository(),
-                new InMemoryRuleCache(), eventPublisher, null, null);
+                new InMemoryRuleCache(), eventPublisher, null, null, null);
     }
 
     @Test
@@ -128,7 +128,7 @@ class LoyaltyDomainServiceTest {
                 new CounterService(), new TierCalculationService(),
                 ruleRepo, pointsRepo, new InMemoryPointsTransactionRepository(), counterRepo,
                 tierRepository, new InMemoryTierPolicyRepository(),
-                new InMemoryRuleCache(), eventPublisher, null, null);
+                new InMemoryRuleCache(), eventPublisher, null, null, null);
 
         goldService.processEvent(new IncomingEvent("purchase", t1, u1, "evt-gold", Instant.now(), Map.of()));
 
@@ -164,6 +164,9 @@ class LoyaltyDomainServiceTest {
         @Override public PointsTransaction save(PointsTransaction tx) { txs.add(tx); return tx; }
         @Override public List<PointsTransaction> findByAccountId(UUID id, int limit, int off) { return List.of(); }
         @Override public boolean existsByEventIdempotencyKey(TenantId t, String k) { return txs.stream().anyMatch(tx -> k.equals(tx.eventIdempotencyKey())); }
+        @Override public List<PointsTransaction> findByTenantId(TenantId t, int page, int size) {
+            return txs.stream().filter(tx -> tx.tenantId().equals(t)).toList();
+        }
     }
 
     static class InMemoryCounterRepository implements CounterRepository {
@@ -178,6 +181,10 @@ class LoyaltyDomainServiceTest {
 
         @Override public MemberTier save(MemberTier tier) { this.tier = tier; return tier; }
         @Override public Optional<MemberTier> findByMemberId(TenantId t, UserId u) { return Optional.ofNullable(tier); }
+        @Override public List<MemberTier> findAllAboveBronze() {
+            return tier != null && tier.level() != com.yowyob.loyalty.domain.loyalty.model.tier.TierLevel.BRONZE
+                    ? List.of(tier) : List.of();
+        }
     }
 
     static class InMemoryTierPolicyRepository implements TierPolicyRepository {
