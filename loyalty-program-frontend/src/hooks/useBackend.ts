@@ -17,6 +17,8 @@ import {
     promoApi,
     campaignApi,
     subscriptionApi,
+    apiKeyApi,
+    webhookApi,
     type WalletResponse,
     type PointsAccountResponse,
     type MemberTierResponse,
@@ -30,6 +32,9 @@ import {
     type SubscriptionPlanResponse,
     type TenantSubscriptionResponse,
     type InvoiceResponse,
+    type ApiKeyResponse,
+    type WebhookEndpointResponse,
+    type WebhookDeliveryResponse,
 } from "@/lib/api";
 
 // ─── Générique ───────────────────────────────────────────────────────────────
@@ -166,4 +171,24 @@ export function useMySubscription(): UseQueryResult<TenantSubscriptionResponse> 
 /** Retourne les factures du tenant */
 export function useMyInvoices(): UseQueryResult<InvoiceResponse[]> {
     return useQuery(() => subscriptionApi.getMyInvoices());
+}
+
+// ─── Hooks Developer Portal ───────────────────────────────────────────────────
+
+/** Retourne les clés API du tenant */
+export function useApiKeys(): UseQueryResult<ApiKeyResponse[]> {
+    return useQuery(() => apiKeyApi.list());
+}
+
+/** Retourne les webhooks du tenant */
+export function useWebhooks(): UseQueryResult<WebhookEndpointResponse[]> {
+    return useQuery(() => webhookApi.list());
+}
+
+/** Retourne le journal des livraisons webhook du tenant */
+export function useWebhookDeliveries(
+    page = 0,
+    size = 20
+): UseQueryResult<WebhookDeliveryResponse[]> {
+    return useQuery(() => webhookApi.listDeliveries(page, size));
 }

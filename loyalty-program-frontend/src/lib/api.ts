@@ -20,7 +20,23 @@ function getAuthHeaders(): HeadersInit {
     };
 }
 
-async function request<T>(
+/**
+ * Auth pour le portail développeur : une clé API tenant (X-Api-Key), distincte
+ * du JWT admin (loyalty_jwt_token) utilisé par le portail /portal.
+ */
+function getDevApiKeyHeaders(): HeadersInit {
+    const key =
+        typeof window !== "undefined"
+            ? sessionStorage.getItem("loyalty_dev_api_key")
+            : null;
+    return {
+        "Content-Type": "application/json",
+        ...(key ? { "X-Api-Key": key } : {}),
+    };
+}
+
+async function requestWithHeaders<T>(
+    getHeaders: () => HeadersInit,
     method: string,
     path: string,
     body?: unknown,
@@ -28,7 +44,7 @@ async function request<T>(
 ): Promise<T> {
     const res = await fetch(`${BASE}${path}`, {
         method,
-        headers: { ...getAuthHeaders(), ...(extraHeaders ?? {}) },
+        headers: { ...getHeaders(), ...(extraHeaders ?? {}) },
         body: body !== undefined ? JSON.stringify(body) : undefined,
     });
 
@@ -44,11 +60,21 @@ async function request<T>(
     return null as T;
 }
 
+const request = <T>(method: string, path: string, body?: unknown, extraHeaders?: HeadersInit) =>
+    requestWithHeaders<T>(getAuthHeaders, method, path, body, extraHeaders);
+
 const get = <T>(path: string) => request<T>("GET", path);
 const post = <T>(path: string, body: unknown, headers?: HeadersInit) =>
     request<T>("POST", path, body, headers);
 const patch = <T>(path: string, body?: unknown) =>
     request<T>("PATCH", path, body);
+
+// Variantes authentifiées par clé API (portail développeur, /developer/*)
+const requestDev = <T>(method: string, path: string, body?: unknown) =>
+    requestWithHeaders<T>(getDevApiKeyHeaders, method, path, body);
+const getDev = <T>(path: string) => requestDev<T>("GET", path);
+const postDev = <T>(path: string, body: unknown) => requestDev<T>("POST", path, body);
+const patchDev = <T>(path: string, body?: unknown) => requestDev<T>("PATCH", path, body);
 
 // ─── Types partagés ─────────────────────────────────────────────────────────
 
@@ -189,6 +215,68 @@ export interface BonificationTransactionResponse {
 export interface HealthResponse {
     status: string;
     components?: Record<string, { status: string }>;
+}
+
+export type ApiKeyMode = "LIVE" | "TEST";
+
+export interface ApiKeyResponse {
+    id: string;
+    name: string;
+    keyPrefix: string;
+    mode: ApiKeyMode;
+    active: boolean;
+    createdAt: string;
+    lastUsedAt: string | null;
+    rawKey?: string;
+}
+
+export interface CreateApiKeyRequest {
+    name: string;
+    mode?: ApiKeyMode;
+}
+
+export type WebhookDeliveryStatus = "PENDING" | "SUCCEEDED" | "FAILED" | "EXHAUSTED";
+
+export interface WebhookEndpointResponse {
+    id: string;
+    url: string;
+    description: string | null;
+    eventTypes: string[];
+    active: boolean;
+    createdAt: string;
+    updatedAt: string;
+    secret?: string;
+}
+
+export interface CreateWebhookEndpointRequest {
+    url: string;
+    description?: string;
+    eventTypes: string[];
+}
+
+export interface UpdateWebhookEndpointRequest {
+    url?: string;
+    description?: string;
+    eventTypes?: string[];
+    active?: boolean;
+}
+
+export interface WebhookDeliveryResponse {
+    id: string;
+    endpointId: string;
+    eventType: string;
+    status: WebhookDeliveryStatus;
+    httpStatusCode: number | null;
+    responseSnippet: string | null;
+    attemptCount: number;
+    createdAt: string;
+    deliveredAt: string | null;
+}
+
+export interface TestPingResponse {
+    success: boolean;
+    httpStatus: number | null;
+    responseSnippet: string | null;
 }
 
 // ─── API Wallet ──────────────────────────────────────────────────────────────
@@ -437,4 +525,76 @@ export const subscriptionApi = {
     changePlan: (newPlanId: string) =>
         patch<TenantSubscriptionResponse>("/api/v1/subscriptions/me/plan", { newPlanId }),
     cancel: () => request<void>("DELETE", "/api/v1/subscriptions/me"),
+};
+
+// ─── API Auth (Portail Admin) ─────────────────────────────────────────────────
+
+export interface LoginRequest {
+    email: string;
+    password: string;
+}
+
+export interface LoginResponse {
+    token: string;
+}
+
+export const authApi = {
+    /** POST /api/v1/auth/login — Connexion admin par email/mot de passe (KernelCore) */
+    login: (data: LoginRequest) => post<LoginResponse>("/api/v1/auth/login", data),
+};
+
+// ─── API Clés API (Developer Portal — authentifié par clé API) ───────────────
+
+export const apiKeyApi = {
+    /** GET /api/v1/admin/api-keys — Lister les clés API du tenant */
+    list: () => getDev<ApiKeyResponse[]>("/api/v1/admin/api-keys"),
+
+    /** POST /api/v1/admin/api-keys — Créer une clé API (rawKey affichée une seule fois) */
+    create: (data: CreateApiKeyRequest) =>
+        postDev<ApiKeyResponse>("/api/v1/admin/api-keys", data),
+
+    /** DELETE /api/v1/admin/api-keys/{id} — Révoquer une clé API */
+    revoke: (id: string) =>
+        requestDev<void>("DELETE", `/api/v1/admin/api-keys/${id}`),
+};
+
+// ─── API Webhooks (Developer Portal — authentifié par clé API) ───────────────
+
+export const webhookApi = {
+    /** GET /api/v1/admin/webhooks — Lister les webhooks du tenant */
+    list: () => getDev<WebhookEndpointResponse[]>("/api/v1/admin/webhooks"),
+
+    /** POST /api/v1/admin/webhooks — Créer un webhook (secret affiché une seule fois) */
+    create: (data: CreateWebhookEndpointRequest) =>
+        postDev<WebhookEndpointResponse>("/api/v1/admin/webhooks", data),
+
+    /** PATCH /api/v1/admin/webhooks/{id} — Mettre à jour un webhook */
+    update: (id: string, data: UpdateWebhookEndpointRequest) =>
+        patchDev<WebhookEndpointResponse>(`/api/v1/admin/webhooks/${id}`, data),
+
+    /** DELETE /api/v1/admin/webhooks/{id} — Supprimer un webhook */
+    remove: (id: string) =>
+        requestDev<void>("DELETE", `/api/v1/admin/webhooks/${id}`),
+
+    /** POST /api/v1/admin/webhooks/{id}/rotate-secret — Régénérer le secret */
+    rotateSecret: (id: string) =>
+        postDev<WebhookEndpointResponse>(`/api/v1/admin/webhooks/${id}/rotate-secret`, {}),
+
+    /** POST /api/v1/admin/webhooks/{id}/test — Envoyer un ping de test */
+    sendTestPing: (id: string) =>
+        postDev<TestPingResponse>(`/api/v1/admin/webhooks/${id}/test`, {}),
+
+    /** GET /api/v1/admin/webhooks/deliveries?page=&size= — Journal des livraisons */
+    listDeliveries: (page = 0, size = 20) =>
+        getDev<WebhookDeliveryResponse[]>(
+            `/api/v1/admin/webhooks/deliveries?page=${page}&size=${size}`
+        ),
+};
+
+// ─── API Événements (Sandbox développeur — authentifié par clé API) ─────────
+
+export const devEventsApi = {
+    /** POST /api/v1/events — Envoyer un événement de test depuis le Sandbox (X-Api-Key) */
+    processEvent: (data: IncomingEventRequest) =>
+        postDev<EventProcessingResponse>("/api/v1/events", data),
 };

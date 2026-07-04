@@ -4,28 +4,15 @@
     "description": "Configure rules and establishments programmatically."
   },
   "Login": {
-    "organizationAccess": "Organization Access",
-    "description": "Enter your API Key to configure your loyalty program rules and establishments.",
-    "apiKeyLabel": "API Key",
-    "apiKeyPlaceholder": "sk_live_...",
+    "adminDescription": "Sign in with your tenant administrator account to manage your loyalty program.",
     "authenticating": "Authenticating...",
     "accessDashboard": "Access Dashboard",
     "footer": "LOYALTY ENGINE V1.0",
     "loginTitle": "Sign in to your account",
-    "usernameLabel": "Username or Email",
     "passwordLabel": "Password",
     "passwordPlaceholder": "••••••••",
-    "loginWithApiKey": "API Key Login",
-    "loginWithCredentials": "Credentials Login",
-    "registerLink": "Don't have an account? Sign up",
-    "alreadyHaveAccount": "Already have an account? Sign in",
-    "registerTitle": "Create your account",
-    "registerButton": "Sign up",
-    "nameLabel": "Full Name",
-    "namePlaceholder": "John Doe",
     "emailLabel": "Email Address",
-    "emailPlaceholder": "john.doe@example.com",
-    "referredByAlert": "You are signing up via referral link from: {ref}"
+    "emailPlaceholder": "john.doe@example.com"
   },
   "Navigation": {
     "overview": "Overview",
@@ -222,5 +209,32 @@
     "quickActions": "Quick Actions",
     "configureRules": "Configure Rules",
     "viewMembers": "View Members"
+  },
+  "Developer": {
+    "loyaltyCore": "Developer Portal",
+    "tokenGateTitle": "Developer Access",
+    "tokenGateDescription": "Enter your tenant API key to manage webhooks, view delivery logs and try the sandbox.",
+    "tokenLabel": "API Key",
+    "tokenPlaceholder": "lk_live_...",
+    "unlock": "Unlock Developer Portal",
+    "disconnect": "Disconnect",
+    "navDashboard": "Dashboard",
+    "navApiKeys": "API Keys",
+    "navWebhooks": "Webhooks",
+    "navLogs": "Delivery Logs",
+    "navDocs": "Documentation",
+    "navSandbox": "Sandbox",
+    "dashboardTitle": "Developer Dashboard",
+    "dashboardDescription": "Overview of your integration: API keys, webhooks and recent activity.",
+    "apiKeysTitle": "API Keys",
+    "apiKeysDescription": "Create and manage the keys your systems use to authenticate against this API (X-Api-Key header).",
+    "webhooksTitle": "Webhooks",
+    "webhooksDescription": "Register callback URLs to receive real-time notifications when events happen in this loyalty program.",
+    "logsTitle": "Delivery Logs",
+    "logsDescription": "History of webhook delivery attempts across all your endpoints.",
+    "docsTitle": "Documentation",
+    "docsDescription": "How to authenticate, subscribe to events, and verify webhook signatures.",
+    "sandboxTitle": "Sandbox",
+    "sandboxDescription": "Use a TEST-mode API key to safely try out the API and your webhook integration."
   }
 }
