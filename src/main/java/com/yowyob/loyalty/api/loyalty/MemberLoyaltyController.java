@@ -12,6 +12,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 
 import java.util.UUID;
 
@@ -35,12 +36,12 @@ public class MemberLoyaltyController {
     @PreAuthorize("@memberOwnershipValidator.isOwnerOrAdmin(#memberId.toString())")
     public Mono<PointsAccountResponse> getPoints(@PathVariable UUID memberId) {
         return TenantContextHolder.getTenantId()
-                .map(tenantId -> {
+                .flatMap(tenantId -> Mono.fromCallable(() -> {
                     UserId userId = UserId.of(memberId);
                     var account = getMemberPointsUseCase.getPoints(tenantId, userId);
                     var tier = getMemberTierUseCase.getTier(tenantId, userId);
                     return PointsAccountResponse.from(account, tier);
-                });
+                }).subscribeOn(Schedulers.boundedElastic()));
     }
 
     @GetMapping("/points/history")
@@ -51,8 +52,10 @@ public class MemberLoyaltyController {
             @RequestParam(defaultValue = "20") int size
     ) {
         return TenantContextHolder.getTenantId()
-                .flatMapMany(tenantId -> Flux.fromIterable(
-                        getMemberPointsUseCase.getPointsHistory(tenantId, UserId.of(memberId), page, size)))
+                .flatMapMany(tenantId -> Mono.fromCallable(() ->
+                                getMemberPointsUseCase.getPointsHistory(tenantId, UserId.of(memberId), page, size))
+                        .subscribeOn(Schedulers.boundedElastic())
+                        .flatMapMany(Flux::fromIterable))
                 .map(PointsTransactionResponse::from);
     }
 
@@ -60,7 +63,8 @@ public class MemberLoyaltyController {
     @PreAuthorize("@memberOwnershipValidator.isOwnerOrAdmin(#memberId.toString())")
     public Mono<MemberTierResponse> getTier(@PathVariable UUID memberId) {
         return TenantContextHolder.getTenantId()
-                .map(tenantId -> MemberTierResponse.from(
-                        getMemberTierUseCase.getTier(tenantId, UserId.of(memberId))));
+                .flatMap(tenantId -> Mono.fromCallable(() -> MemberTierResponse.from(
+                                getMemberTierUseCase.getTier(tenantId, UserId.of(memberId))))
+                        .subscribeOn(Schedulers.boundedElastic()));
     }
 }

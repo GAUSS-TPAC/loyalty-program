@@ -13,6 +13,11 @@ import org.springframework.data.r2dbc.repository.config.EnableR2dbcRepositories;
 @EnableR2dbcRepositories(basePackages = "com.yowyob.loyalty.infrastructure.persistence")
 public class R2dbcConfig {
 
+    // jsonb columns are mapped to entity fields typed as io.r2dbc.postgresql.codec.Json
+    // directly (see RuleEntity, PointsTransactionEntity, TierPolicyEntity) rather than via
+    // a custom String<->Json converter: PostgresDialect already binds Json natively, and a
+    // generic Converter<String, Json> would apply to every String column, not just jsonb ones.
+
     @Bean
     public ConnectionFactory rawConnectionFactory(R2dbcProperties properties) {
         return ConnectionFactoryBuilder.withUrl(properties.getUrl())

@@ -5,7 +5,6 @@ import com.yowyob.loyalty.domain.loyalty.model.event.AppliedEffect;
 import com.yowyob.loyalty.domain.loyalty.model.event.EventProcessingResult;
 import com.yowyob.loyalty.domain.loyalty.port.out.LoyaltyEventPublisherPort;
 import com.yowyob.loyalty.domain.webhook.model.WebhookEventType;
-import com.yowyob.loyalty.infrastructure.kafka.producer.LoyaltyEventProducer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Primary;
@@ -21,10 +20,10 @@ public class WebhookAwareLoyaltyEventPublisher implements LoyaltyEventPublisherP
 
     private static final Logger log = LoggerFactory.getLogger(WebhookAwareLoyaltyEventPublisher.class);
 
-    private final LoyaltyEventProducer delegate;
+    private final LoyaltyEventPublisherPort delegate;
     private final WebhookDispatchService webhookDispatchService;
 
-    public WebhookAwareLoyaltyEventPublisher(LoyaltyEventProducer delegate, WebhookDispatchService webhookDispatchService) {
+    public WebhookAwareLoyaltyEventPublisher(LoyaltyEventPublisherPort delegate, WebhookDispatchService webhookDispatchService) {
         this.delegate = delegate;
         this.webhookDispatchService = webhookDispatchService;
     }

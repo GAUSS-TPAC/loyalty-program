@@ -4,7 +4,6 @@ import com.yowyob.loyalty.application.webhook.WebhookDispatchService;
 import com.yowyob.loyalty.domain.reward.event.RewardDomainEvent;
 import com.yowyob.loyalty.domain.reward.port.out.RewardEventPublisherPort;
 import com.yowyob.loyalty.domain.webhook.model.WebhookEventType;
-import com.yowyob.loyalty.infrastructure.kafka.producer.RewardEventProducer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Primary;
@@ -21,10 +20,10 @@ public class WebhookAwareRewardEventPublisher implements RewardEventPublisherPor
 
     private static final Logger log = LoggerFactory.getLogger(WebhookAwareRewardEventPublisher.class);
 
-    private final RewardEventProducer delegate;
+    private final RewardEventPublisherPort delegate;
     private final WebhookDispatchService webhookDispatchService;
 
-    public WebhookAwareRewardEventPublisher(RewardEventProducer delegate, WebhookDispatchService webhookDispatchService) {
+    public WebhookAwareRewardEventPublisher(RewardEventPublisherPort delegate, WebhookDispatchService webhookDispatchService) {
         this.delegate = delegate;
         this.webhookDispatchService = webhookDispatchService;
     }

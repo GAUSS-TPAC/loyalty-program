@@ -12,6 +12,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 
 import java.util.UUID;
 
@@ -52,15 +53,19 @@ public class RuleController {
     @GetMapping
     public Flux<RuleResponse> listRules() {
         return TenantContextHolder.getTenantId()
-                .flatMapMany(tenantId -> Flux.fromIterable(ruleRepository.findByTenant(tenantId)))
+                .flatMapMany(tenantId -> Mono.fromCallable(() -> ruleRepository.findByTenant(tenantId))
+                        .subscribeOn(Schedulers.boundedElastic())
+                        .flatMapMany(Flux::fromIterable))
                 .map(RuleResponse::from);
     }
 
     @GetMapping("/{ruleId}")
     public Mono<RuleResponse> getRule(@PathVariable UUID ruleId) {
         return TenantContextHolder.getTenantId()
-                .flatMap(tenantId -> Mono.justOrEmpty(ruleRepository.findById(ruleId)
-                        .filter(r -> r.getTenantId().equals(tenantId))))
+                .flatMap(tenantId -> Mono.fromCallable(() -> ruleRepository.findById(ruleId)
+                                .filter(r -> r.getTenantId().equals(tenantId)))
+                        .subscribeOn(Schedulers.boundedElastic())
+                        .flatMap(Mono::justOrEmpty))
                 .map(RuleResponse::from);
     }
 

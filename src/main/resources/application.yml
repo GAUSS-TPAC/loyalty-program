@@ -26,8 +26,11 @@ spring:
     out-of-order: false
 
   # ── Redis (idempotence + cache solde) ───────────────────────
+  # `url` prend le pas sur host/port/password quand elle est renseignée
+  # (utile pour les Redis managés qui n'exposent qu'une connection string, ex. Render Key Value).
   data:
     redis:
+      url: ${REDIS_URL:redis://${REDIS_HOST:localhost}:${REDIS_PORT:6379}}
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
       password: ${REDIS_PASSWORD:}

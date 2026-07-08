@@ -9,6 +9,7 @@ import com.yowyob.loyalty.domain.loyalty.port.out.RuleCachePort;
 import com.yowyob.loyalty.shared.multitenancy.TenantContextHolder;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 
 import java.time.Instant;
 import java.util.List;
@@ -35,13 +36,13 @@ public class CreateRuleHandler {
             Instant validUntil
     ) {
         return TenantContextHolder.getTenantId()
-                .map(tenantId -> {
+                .flatMap(tenantId -> Mono.fromCallable(() -> {
                     Rule rule = createRuleUseCase.createRule(
                             tenantId, name, description, trigger, conditions, effects,
                             priority, validFrom, validUntil
                     );
                     ruleCache.invalidateCache(tenantId);
                     return rule;
-                });
+                }).subscribeOn(Schedulers.boundedElastic()));
     }
 }

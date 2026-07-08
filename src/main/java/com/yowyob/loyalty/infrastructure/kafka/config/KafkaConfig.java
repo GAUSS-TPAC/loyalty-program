@@ -21,7 +21,7 @@ public class KafkaConfig {
     private String bootstrapServers;
 
     @Bean
-    @Profile("!test")
+    @Profile("!test & !no-kafka")
     public ReactiveKafkaProducerTemplate<String, Object> walletEventKafkaTemplate(SenderOptions<String, Object> senderOptions) {
         return new ReactiveKafkaProducerTemplate<>(senderOptions);
     }

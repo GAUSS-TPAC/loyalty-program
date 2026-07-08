@@ -1,5 +1,6 @@
 package com.yowyob.loyalty.infrastructure.persistence.loyalty.entity;
 
+import io.r2dbc.postgresql.codec.Json;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.relational.core.mapping.Table;
 
@@ -19,7 +20,7 @@ public class PointsTransactionEntity {
     private String source;
     private UUID ruleId;
     private String eventIdempotencyKey;
-    private String metadata;
+    private Json metadata;
     private Instant createdAt;
 
     public UUID getId() { return id; }
@@ -40,8 +41,8 @@ public class PointsTransactionEntity {
     public void setRuleId(UUID ruleId) { this.ruleId = ruleId; }
     public String getEventIdempotencyKey() { return eventIdempotencyKey; }
     public void setEventIdempotencyKey(String eventIdempotencyKey) { this.eventIdempotencyKey = eventIdempotencyKey; }
-    public String getMetadata() { return metadata; }
-    public void setMetadata(String metadata) { this.metadata = metadata; }
+    public Json getMetadata() { return metadata; }
+    public void setMetadata(Json metadata) { this.metadata = metadata; }
     public Instant getCreatedAt() { return createdAt; }
     public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
 }

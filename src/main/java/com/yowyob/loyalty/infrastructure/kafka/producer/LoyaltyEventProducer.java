@@ -11,7 +11,7 @@ import org.springframework.stereotype.Component;
 import reactor.core.publisher.Mono;
 
 @Component
-@Profile("!test")
+@Profile("!test & !no-kafka")
 public class LoyaltyEventProducer implements LoyaltyEventPublisherPort {
 
     private static final Logger log = LoggerFactory.getLogger(LoyaltyEventProducer.class);

@@ -15,7 +15,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 @Configuration
-@Profile("!test")
+@Profile("!test & !no-kafka")
 public class LoyaltyKafkaConfig {
 
     @Bean

@@ -1,5 +1,6 @@
 package com.yowyob.loyalty.infrastructure.persistence.loyalty.entity;
 
+import io.r2dbc.postgresql.codec.Json;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.relational.core.mapping.Table;
 
@@ -13,7 +14,7 @@ public class TierPolicyEntity {
     private UUID id;
     private UUID tenantId;
     private String criterion;
-    private String thresholds;
+    private Json thresholds;
     private String maintainPeriod;
     private long maintainThresholdPoints;
     private int downgradeGraceDays;
@@ -26,8 +27,8 @@ public class TierPolicyEntity {
     public void setTenantId(UUID tenantId) { this.tenantId = tenantId; }
     public String getCriterion() { return criterion; }
     public void setCriterion(String criterion) { this.criterion = criterion; }
-    public String getThresholds() { return thresholds; }
-    public void setThresholds(String thresholds) { this.thresholds = thresholds; }
+    public Json getThresholds() { return thresholds; }
+    public void setThresholds(Json thresholds) { this.thresholds = thresholds; }
     public String getMaintainPeriod() { return maintainPeriod; }
     public void setMaintainPeriod(String maintainPeriod) { this.maintainPeriod = maintainPeriod; }
     public long getMaintainThresholdPoints() { return maintainThresholdPoints; }

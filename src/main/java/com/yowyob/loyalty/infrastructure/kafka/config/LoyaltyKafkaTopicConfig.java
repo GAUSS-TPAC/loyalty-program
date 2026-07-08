@@ -8,7 +8,7 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.kafka.config.TopicBuilder;
 
 @Configuration
-@Profile("!test")
+@Profile("!test & !no-kafka")
 public class LoyaltyKafkaTopicConfig {
 
     @Bean

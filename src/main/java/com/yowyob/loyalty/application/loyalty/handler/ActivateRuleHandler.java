@@ -5,6 +5,7 @@ import com.yowyob.loyalty.domain.loyalty.port.in.ActivateRuleUseCase;
 import com.yowyob.loyalty.shared.multitenancy.TenantContextHolder;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 
 import java.util.UUID;
 
@@ -19,6 +20,7 @@ public class ActivateRuleHandler {
 
     public Mono<Rule> activate(UUID ruleId) {
         return TenantContextHolder.getTenantId()
-                .map(tenantId -> activateRuleUseCase.activateRule(tenantId, ruleId));
+                .flatMap(tenantId -> Mono.fromCallable(() -> activateRuleUseCase.activateRule(tenantId, ruleId))
+                        .subscribeOn(Schedulers.boundedElastic()));
     }
 }

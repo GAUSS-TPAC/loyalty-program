@@ -5,6 +5,7 @@ import com.yowyob.loyalty.domain.wallet.port.in.ListWalletsUseCase;
 import com.yowyob.loyalty.shared.multitenancy.TenantContextHolder;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -20,7 +21,7 @@ public class AdminMemberController {
 
     private final ListWalletsUseCase listWalletsUseCase;
 
-    public AdminMemberController(ListWalletsUseCase listWalletsUseCase) {
+    public AdminMemberController(@Qualifier("listWalletsHandler") ListWalletsUseCase listWalletsUseCase) {
         this.listWalletsUseCase = listWalletsUseCase;
     }
 

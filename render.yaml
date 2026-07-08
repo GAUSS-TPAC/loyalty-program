@@ -1,0 +1,94 @@
+databases:
+  - name: loyalty-postgres
+    plan: free
+    postgresMajorVersion: "18"
+    databaseName: loyalty_db
+    user: loyalty_user
+
+services:
+  # ── Cache Redis-compatible managé (remplace le conteneur redis du docker-compose local) ──
+  - name: loyalty-redis
+    type: keyvalue
+    plan: free
+    maxmemoryPolicy: allkeys-lru
+    ipAllowList:
+      - source: 0.0.0.0/0
+        description: Autorise l'accès interne depuis les autres services Render
+
+  # ── Backend Spring Boot (WebFlux) ─────────────────────────────
+  - name: loyalty-backend
+    type: web
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /actuator/health
+    envVars:
+      - key: SPRING_PROFILES_ACTIVE
+        value: no-kafka
+      - key: SERVER_PORT
+        value: "8081"
+
+      # Postgres — user/password/database sont câblés automatiquement.
+      # DB_HOST/DB_PORT ne sont pas exposés par le blueprint Render pour les
+      # bases de données : à copier manuellement depuis l'onglet "Info" de
+      # loyalty-postgres après le premier déploiement (Hostname/Port internes).
+      - key: DB_USER
+        fromDatabase:
+          name: loyalty-postgres
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: loyalty-postgres
+          property: password
+      - key: DB_NAME
+        fromDatabase:
+          name: loyalty-postgres
+          property: database
+      - key: DB_HOST
+        sync: false
+      - key: DB_PORT
+        value: "5432"
+
+      # Redis — câblé automatiquement via l'URL de connexion complète.
+      - key: REDIS_URL
+        fromService:
+          name: loyalty-redis
+          property: connectionString
+
+      # Kernel Core (RT-Comops/IWM) — voir CLAUDE.md. À ajuster/valider après
+      # le premier login réel (issuer/claims non encore vérifiés en conditions réelles).
+      - key: KERNEL_CORE_URL
+        value: https://kernel-core.yowyob.com
+      - key: KERNEL_SERVICE_CLIENT_ID
+        sync: false
+      - key: KERNEL_SERVICE_CLIENT_SECRET
+        sync: false
+      - key: JWT_ISSUER_URI
+        value: kernel-core
+      - key: JWT_JWK_SET_URI
+        value: https://kernel-core.yowyob.com/.well-known/jwks.json
+
+      # Bonification externe (équipe 5GI)
+      - key: BONIFICATION_ENABLED
+        value: "true"
+      - key: BONIFICATION_API_BASE_URL
+        value: https://bonusapi.onrender.com
+      - key: BONIFICATION_LOGIN
+        sync: false
+      - key: BONIFICATION_PASSWORD
+        sync: false
+
+  # ── Frontend Next.js ───────────────────────────────────────────
+  - name: loyalty-frontend
+    type: web
+    runtime: docker
+    plan: free
+    dockerfilePath: ./loyalty-program-frontend/Dockerfile
+    dockerContext: ./loyalty-program-frontend
+    envVars:
+      # URL publique du service loyalty-backend une fois déployé
+      # (ex: https://loyalty-backend.onrender.com) — à renseigner après le
+      # premier déploiement du backend.
+      - key: NEXT_PUBLIC_API_URL
+        sync: false

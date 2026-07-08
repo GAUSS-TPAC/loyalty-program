@@ -7,7 +7,7 @@ import org.springframework.stereotype.Component;
 import reactor.core.publisher.Mono;
 
 @Component
-@Profile("test")
+@Profile("test | no-kafka")
 public class NoOpReferralEventProducer implements ReferralEventPublisherPort {
     @Override
     public Mono<Void> publish(ReferralDomainEvent event) {

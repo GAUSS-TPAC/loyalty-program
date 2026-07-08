@@ -8,6 +8,7 @@ import com.yowyob.loyalty.domain.loyalty.port.in.ProcessEventUseCase;
 import com.yowyob.loyalty.domain.wallet.port.out.IdempotencyPort;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 
 import java.time.Duration;
 
@@ -32,7 +33,8 @@ public class ProcessEventHandler {
 
     public Mono<EventProcessingResult> handle(IncomingEvent event) {
         if (event.idempotencyKey() == null || event.idempotencyKey().isBlank()) {
-            return Mono.fromCallable(() -> processEventUseCase.processEvent(event));
+            return Mono.fromCallable(() -> processEventUseCase.processEvent(event))
+                    .subscribeOn(Schedulers.boundedElastic());
         }
 
         String tenantId = event.tenantId().value().toString();
@@ -45,6 +47,7 @@ public class ProcessEventHandler {
                                 .flatMap(json -> Mono.fromCallable(() -> deserialize(json)));
                     }
                     return Mono.fromCallable(() -> processEventUseCase.processEvent(event))
+                            .subscribeOn(Schedulers.boundedElastic())
                             .flatMap(result -> idempotencyPort
                                     .registerIfAbsent(key, tenantId, IDEMPOTENCY_TTL, serialize(result))
                                     .thenReturn(result));

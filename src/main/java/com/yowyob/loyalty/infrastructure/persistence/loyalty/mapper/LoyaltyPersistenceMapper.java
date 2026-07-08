@@ -13,6 +13,7 @@ import com.yowyob.loyalty.domain.loyalty.model.tier.TierPolicy;
 import com.yowyob.loyalty.domain.shared.model.TenantId;
 import com.yowyob.loyalty.domain.shared.model.UserId;
 import com.yowyob.loyalty.infrastructure.persistence.loyalty.entity.*;
+import io.r2dbc.postgresql.codec.Json;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
@@ -200,36 +201,36 @@ public class LoyaltyPersistenceMapper {
         );
     }
 
-    private String writeJson(Object value) {
+    private Json writeJson(Object value) {
         try {
-            return objectMapper.writeValueAsString(value);
+            return Json.of(objectMapper.writeValueAsString(value));
         } catch (JsonProcessingException e) {
             throw new IllegalStateException("JSON serialization failed", e);
         }
     }
 
-    private <T> T readJson(String json, Class<T> type) {
+    private <T> T readJson(Json json, Class<T> type) {
         try {
-            return objectMapper.readValue(json, type);
+            return objectMapper.readValue(json.asString(), type);
         } catch (JsonProcessingException e) {
             throw new IllegalStateException("JSON deserialization failed", e);
         }
     }
 
-    private <T> List<T> readJsonList(String json, Class<T> elementType) {
+    private <T> List<T> readJsonList(Json json, Class<T> elementType) {
         try {
-            return objectMapper.readValue(json, objectMapper.getTypeFactory().constructCollectionType(List.class, elementType));
+            return objectMapper.readValue(json.asString(), objectMapper.getTypeFactory().constructCollectionType(List.class, elementType));
         } catch (JsonProcessingException e) {
             throw new IllegalStateException("JSON list deserialization failed", e);
         }
     }
 
-    private Map<String, Object> readJsonMap(String json) {
-        if (json == null || json.isBlank()) {
+    private Map<String, Object> readJsonMap(Json json) {
+        if (json == null) {
             return Map.of();
         }
         try {
-            return objectMapper.readValue(json, new TypeReference<>() {});
+            return objectMapper.readValue(json.asString(), new TypeReference<>() {});
         } catch (JsonProcessingException e) {
             throw new IllegalStateException("JSON map deserialization failed", e);
         }

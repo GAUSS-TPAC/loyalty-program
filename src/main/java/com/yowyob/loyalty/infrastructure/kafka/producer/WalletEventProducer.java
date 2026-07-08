@@ -10,7 +10,7 @@ import org.springframework.stereotype.Component;
 import reactor.core.publisher.Mono;
 
 @Component
-@Profile("!test")
+@Profile("!test & !no-kafka")
 public class WalletEventProducer implements WalletEventPublisherPort {
     private static final Logger log = LoggerFactory.getLogger(WalletEventProducer.class);
     private final ReactiveKafkaProducerTemplate<String, Object> kafkaTemplate;

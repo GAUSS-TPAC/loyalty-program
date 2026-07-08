@@ -6,11 +6,11 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 @Component
-@Profile("test")
+@Profile("test | no-kafka")
 public class NoOpLoyaltyEventProducer implements LoyaltyEventPublisherPort {
 
     @Override
     public void publishProcessedEvent(EventProcessingResult result) {
-        // no-op for unit/integration tests without Kafka
+        // no-op: unit/integration tests, or Kafka disabled via the no-kafka profile
     }
 }

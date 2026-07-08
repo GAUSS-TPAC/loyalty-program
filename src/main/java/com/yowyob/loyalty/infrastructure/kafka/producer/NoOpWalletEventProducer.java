@@ -7,7 +7,7 @@ import org.springframework.stereotype.Component;
 import reactor.core.publisher.Mono;
 
 @Component
-@Profile("test")
+@Profile("test | no-kafka")
 public class NoOpWalletEventProducer implements WalletEventPublisherPort {
 
     @Override
