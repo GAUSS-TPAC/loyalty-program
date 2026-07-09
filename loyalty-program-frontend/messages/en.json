@@ -188,6 +188,7 @@
     "createRule": "Create Rule"
   },
   "Dashboard": {
+    "welcome": "Welcome",
     "title": "Program Overview",
     "description": "Real-time key performance indicators, active members distribution, and recent campaign activity.",
     "totalMembers": "Total Members",

@@ -13,18 +13,18 @@ import {
   ChevronRight
 } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useWallet, useRules, useBackendHealth } from "@/hooks/useBackend";
+import { useAdminMembers, useRules, useBackendHealth } from "@/hooks/useBackend";
 
 export default function DashboardPage() {
   const t = useTranslations("Dashboard");
 
   // Real data hooks
-  const { data: wallet, isLoading: walletLoading, refetch: refetchWallet } = useWallet();
+  const { data: members, isLoading: membersLoading, refetch: refetchMembers } = useAdminMembers(0, 100);
   const { data: rules, isLoading: rulesLoading, refetch: refetchRules } = useRules();
   const { data: health, isLoading: healthLoading, refetch: refetchHealth } = useBackendHealth();
 
   const handleRefresh = () => {
-    refetchWallet();
+    refetchMembers();
     refetchRules();
     refetchHealth();
   };
@@ -32,15 +32,17 @@ export default function DashboardPage() {
   // Metrics calculation
   const activeRulesCount = rules?.filter(r => r.status === 'ACTIVE').length ?? 0;
   const isSystemHealthy = health?.status === 'UP';
+  const globalWalletBalance = members?.reduce((sum, m) => sum + m.balance, 0) ?? 0;
+  const walletCurrency = members?.[0]?.currencyCode ?? "";
 
   const stats = [
     {
       title: "Solde Global Wallet",
-      value: wallet ? `${wallet.balance.toLocaleString()} ${wallet.currencyCode}` : "—",
+      value: members ? `${globalWalletBalance.toLocaleString()} ${walletCurrency}` : "—",
       change: "+12.5%",
       isPositive: true,
       icon: Coins,
-      loading: walletLoading
+      loading: membersLoading
     },
     {
       title: "Règles Actives",
@@ -87,7 +89,7 @@ export default function DashboardPage() {
             className="p-2 text-muted-foreground hover:bg-secondary rounded-lg transition-colors border border-border"
             title="Rafraîchir les données"
           >
-            <RefreshCw className={`w-4 h-4 ${walletLoading || rulesLoading || healthLoading ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`w-4 h-4 ${membersLoading || rulesLoading || healthLoading ? 'animate-spin' : ''}`} />
           </button>
           <div className={`px-4 py-2 rounded-full flex items-center gap-2.5 border text-xs font-bold tracking-tight shadow-sm ${isSystemHealthy ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-rose-50 border-rose-200 text-rose-700'
             }`}>

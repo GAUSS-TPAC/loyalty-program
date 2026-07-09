@@ -106,6 +106,7 @@ public class LoyaltyDomainService implements ProcessEventUseCase, CreateRuleUseC
                 .stream().collect(Collectors.toMap(Counter::counterKey, Function.identity()));
 
         TierPolicy tierPolicy = tierPolicyRepo.findByTenantId(event.tenantId())
+                .blockOptional()
                 .orElseGet(() -> TierPolicy.defaults(event.tenantId()));
 
         // 3. Load Active Rules (with cache)

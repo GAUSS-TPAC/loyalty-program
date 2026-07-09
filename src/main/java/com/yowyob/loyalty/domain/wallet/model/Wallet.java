@@ -53,9 +53,8 @@ public class Wallet {
         }
         
         this.balance = this.balance.add(amount);
-        this.version++;
         this.updatedAt = Instant.now();
-        
+
         return new WalletCreditResult(this, amount, this.balance);
     }
 
@@ -71,7 +70,6 @@ public class Wallet {
         
         if (!otpRequired) {
             this.balance = this.balance.subtract(amount);
-            this.version++;
             this.updatedAt = Instant.now();
         }
         
@@ -85,7 +83,6 @@ public class Wallet {
         this.status = WalletStatus.FROZEN;
         this.frozenAt = Instant.now();
         this.frozenReason = reason;
-        this.version++;
         this.updatedAt = Instant.now();
         return this;
     }
@@ -97,7 +94,6 @@ public class Wallet {
         this.status = WalletStatus.ACTIVE;
         this.frozenAt = null;
         this.frozenReason = null;
-        this.version++;
         this.updatedAt = Instant.now();
         return this;
     }
@@ -107,7 +103,6 @@ public class Wallet {
             throw new WalletDomainException("Seul un wallet PENDING_KYC peut être activé");
         }
         this.status = WalletStatus.ACTIVE;
-        this.version++;
         this.updatedAt = Instant.now();
         return this;
     }
@@ -120,7 +115,6 @@ public class Wallet {
         // On suit strictement les instructions du guide.
         this.status = WalletStatus.CLOSED;
         this.closedAt = Instant.now();
-        this.version++;
         this.updatedAt = Instant.now();
         return this;
     }
@@ -138,12 +132,12 @@ public class Wallet {
             }
             this.balance = this.balance.subtract(original.amount());
         }
-        this.version++;
         this.updatedAt = Instant.now();
+        Instant now = Instant.now();
         return new WalletTransaction(
             UUID.randomUUID(), this.id, this.tenantId, TransactionType.REVERSAL,
-            original.amount(), balanceBefore, this.balance, TransactionStatus.COMPLETED,
-            original.source(), idempotencyKey, null, original.id(), Map.of(), Instant.now()
+            original.amount(), this.currencyCode, balanceBefore, this.balance, TransactionStatus.COMPLETED,
+            original.source(), idempotencyKey, null, original.id(), Map.of(), now, now
         );
     }
 

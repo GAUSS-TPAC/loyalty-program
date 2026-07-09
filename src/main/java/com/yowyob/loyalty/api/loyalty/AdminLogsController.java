@@ -11,6 +11,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 
 @RestController
 @RequestMapping("/api/v1/admin/points-transactions")
@@ -31,7 +33,10 @@ public class AdminLogsController {
             @RequestParam(defaultValue = "20") int size
     ) {
         return TenantContextHolder.getTenantId()
-                .flatMapMany(tenantId -> Flux.fromIterable(getPointsLedgerUseCase.getTenantLedger(tenantId, page, size)))
+                .flatMapMany(tenantId -> Mono
+                        .fromCallable(() -> getPointsLedgerUseCase.getTenantLedger(tenantId, page, size))
+                        .subscribeOn(Schedulers.boundedElastic())
+                        .flatMapMany(Flux::fromIterable))
                 .map(PointsTransactionLogResponse::from);
     }
 }

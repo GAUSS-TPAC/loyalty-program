@@ -5,9 +5,7 @@ import com.yowyob.loyalty.domain.shared.model.TenantId;
 
 import reactor.core.publisher.Mono;
 
-import java.util.Optional;
-
 public interface TierPolicyRepository {
-    Optional<TierPolicy> findByTenantId(TenantId tenantId);
+    Mono<TierPolicy> findByTenantId(TenantId tenantId);
     Mono<TierPolicy> save(TierPolicy tierPolicy);
 }

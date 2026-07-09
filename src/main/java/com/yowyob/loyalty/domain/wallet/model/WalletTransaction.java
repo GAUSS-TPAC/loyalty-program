@@ -12,6 +12,7 @@ public record WalletTransaction(
     TenantId tenantId,
     TransactionType type,
     BigDecimal amount,
+    String currency,
     BigDecimal balanceBefore,
     BigDecimal balanceAfter,
     TransactionStatus status,
@@ -20,24 +21,28 @@ public record WalletTransaction(
     UUID referenceId,
     UUID reversalOf,
     Map<String, Object> metadata,
-    Instant createdAt
+    Instant createdAt,
+    Instant completedAt
 ) {
     public static WalletTransaction create(
         UUID walletId,
         TenantId tenantId,
         TransactionType type,
         BigDecimal amount,
+        String currency,
         BigDecimal balanceBefore,
         BigDecimal balanceAfter,
         TransactionSource source,
         String idempotencyKey
     ) {
+        Instant now = Instant.now();
         return new WalletTransaction(
             UUID.randomUUID(),
             walletId,
             tenantId,
             type,
             amount,
+            currency,
             balanceBefore,
             balanceAfter,
             TransactionStatus.COMPLETED,
@@ -46,7 +51,8 @@ public record WalletTransaction(
             null,
             null,
             Map.of(),
-            Instant.now()
+            now,
+            now
         );
     }
 
@@ -55,6 +61,7 @@ public record WalletTransaction(
         TenantId tenantId,
         TransactionType type,
         BigDecimal amount,
+        String currency,
         BigDecimal balanceBefore,
         BigDecimal balanceAfter,
         TransactionSource source,
@@ -66,6 +73,7 @@ public record WalletTransaction(
             tenantId,
             type,
             amount,
+            currency,
             balanceBefore,
             balanceAfter,
             TransactionStatus.PENDING,
@@ -74,7 +82,8 @@ public record WalletTransaction(
             null,
             null,
             Map.of(),
-            Instant.now()
+            Instant.now(),
+            null
         );
     }
 }
