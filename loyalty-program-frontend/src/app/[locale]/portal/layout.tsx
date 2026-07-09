@@ -17,7 +17,14 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
   const tHeader = useTranslations("Header");
 
   useEffect(() => {
-    const token = sessionStorage.getItem("loyalty_jwt_token");
+    let token = sessionStorage.getItem("loyalty_jwt_token");
+    if (!token && process.env.NODE_ENV === "development") {
+      // Dev-only bypass: the backend's dev profile doesn't validate the JWT at all
+      // (DevSecurityConfig permits every request), so login via Kernel Core isn't
+      // required to exercise the portal locally.
+      token = "dev-bypass";
+      sessionStorage.setItem("loyalty_jwt_token", token);
+    }
     if (!token) {
       router.push("/");
     } else {

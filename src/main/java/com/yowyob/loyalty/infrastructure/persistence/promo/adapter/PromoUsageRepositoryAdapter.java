@@ -6,6 +6,7 @@ import com.yowyob.loyalty.domain.shared.model.TenantId;
 import com.yowyob.loyalty.domain.shared.model.UserId;
 import com.yowyob.loyalty.infrastructure.persistence.promo.mapper.PromoMapper;
 import com.yowyob.loyalty.infrastructure.persistence.promo.repository.PromoUsageR2dbcRepository;
+import org.springframework.data.r2dbc.core.R2dbcEntityTemplate;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -17,15 +18,20 @@ public class PromoUsageRepositoryAdapter implements PromoUsageRepository {
 
     private final PromoUsageR2dbcRepository r2dbcRepo;
     private final PromoMapper mapper;
+    private final R2dbcEntityTemplate template;
 
-    public PromoUsageRepositoryAdapter(PromoUsageR2dbcRepository r2dbcRepo, PromoMapper mapper) {
+    public PromoUsageRepositoryAdapter(PromoUsageR2dbcRepository r2dbcRepo, PromoMapper mapper, R2dbcEntityTemplate template) {
         this.r2dbcRepo = r2dbcRepo;
         this.mapper = mapper;
+        this.template = template;
     }
 
+    // Promo usages are an append-only log (never updated), and the id is a client-generated
+    // UUID, so save() must always INSERT (see RuleRepositoryAdapter for why
+    // ReactiveCrudRepository.save() can't be trusted to do that on its own).
     @Override
     public Mono<PromoUsage> save(PromoUsage usage) {
-        return r2dbcRepo.save(mapper.toEntity(usage)).map(mapper::toDomain);
+        return template.insert(mapper.toEntity(usage)).map(mapper::toDomain);
     }
 
     @Override

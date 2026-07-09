@@ -5,8 +5,10 @@ import com.yowyob.loyalty.domain.referral.model.ReferralStatus;
 import com.yowyob.loyalty.domain.referral.port.out.ReferralEventRepository;
 import com.yowyob.loyalty.domain.shared.model.TenantId;
 import com.yowyob.loyalty.domain.shared.model.UserId;
+import com.yowyob.loyalty.infrastructure.persistence.referral.entity.ReferralEventEntity;
 import com.yowyob.loyalty.infrastructure.persistence.referral.mapper.ReferralMapper;
 import com.yowyob.loyalty.infrastructure.persistence.referral.repository.ReferralEventR2dbcRepository;
+import org.springframework.data.r2dbc.core.R2dbcEntityTemplate;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -18,15 +20,22 @@ public class ReferralEventRepositoryAdapter implements ReferralEventRepository {
 
     private final ReferralEventR2dbcRepository r2dbcRepo;
     private final ReferralMapper mapper;
+    private final R2dbcEntityTemplate template;
 
-    public ReferralEventRepositoryAdapter(ReferralEventR2dbcRepository r2dbcRepo, ReferralMapper mapper) {
+    public ReferralEventRepositoryAdapter(ReferralEventR2dbcRepository r2dbcRepo, ReferralMapper mapper, R2dbcEntityTemplate template) {
         this.r2dbcRepo = r2dbcRepo;
         this.mapper = mapper;
+        this.template = template;
     }
 
+    // Client-generated UUID id + no Persistable => save() always issues UPDATE. Decide
+    // insert vs update explicitly (see RuleRepositoryAdapter for the full explanation).
     @Override
     public Mono<ReferralEvent> save(ReferralEvent event) {
-        return r2dbcRepo.save(mapper.toEntity(event)).map(mapper::toDomain);
+        ReferralEventEntity entity = mapper.toEntity(event);
+        return r2dbcRepo.existsById(entity.getId())
+                .flatMap(exists -> exists ? r2dbcRepo.save(entity) : template.insert(entity))
+                .map(mapper::toDomain);
     }
 
     @Override

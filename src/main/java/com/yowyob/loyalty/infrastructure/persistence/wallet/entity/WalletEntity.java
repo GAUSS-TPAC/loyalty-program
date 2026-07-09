@@ -26,35 +26,30 @@ public class WalletEntity {
     
     @Column("tenant_id")
     private UUID tenantId;
-    
+
+    @Column("available_balance")
     private BigDecimal balance;
-    
+
     @Column("currency_code")
     private String currencyCode;
-    
+
     private String status;
-    
+
     @Version
     private Long version;
-    
+
     @Column("frozen_at")
     private Instant frozenAt;
-    
-    @Column("frozen_reason")
+
+    @Column("freeze_reason")
     private String frozenReason;
-    
+
     @Column("closed_at")
     private Instant closedAt;
-    
+
     @Column("created_at")
     private Instant createdAt;
-    
+
     @Column("updated_at")
     private Instant updatedAt;
-
-    @Column("created_by")
-    private String createdBy;
-
-    @Column("updated_by")
-    private String updatedBy;
 }

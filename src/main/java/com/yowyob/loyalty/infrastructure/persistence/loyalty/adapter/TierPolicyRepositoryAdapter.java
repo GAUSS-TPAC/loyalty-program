@@ -6,6 +6,7 @@ import com.yowyob.loyalty.domain.shared.model.TenantId;
 import com.yowyob.loyalty.infrastructure.persistence.loyalty.entity.TierPolicyEntity;
 import com.yowyob.loyalty.infrastructure.persistence.loyalty.mapper.LoyaltyPersistenceMapper;
 import com.yowyob.loyalty.infrastructure.persistence.loyalty.repository.TierPolicyR2dbcRepository;
+import org.springframework.data.r2dbc.core.R2dbcEntityTemplate;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Mono;
 
@@ -18,10 +19,12 @@ public class TierPolicyRepositoryAdapter implements TierPolicyRepository {
 
     private final TierPolicyR2dbcRepository repository;
     private final LoyaltyPersistenceMapper mapper;
+    private final R2dbcEntityTemplate template;
 
-    public TierPolicyRepositoryAdapter(TierPolicyR2dbcRepository repository, LoyaltyPersistenceMapper mapper) {
+    public TierPolicyRepositoryAdapter(TierPolicyR2dbcRepository repository, LoyaltyPersistenceMapper mapper, R2dbcEntityTemplate template) {
         this.repository = repository;
         this.mapper = mapper;
+        this.template = template;
     }
 
     @Override
@@ -43,11 +46,13 @@ public class TierPolicyRepositoryAdapter implements TierPolicyRepository {
                     return repository.save(entity);
                 })
                 .switchIfEmpty(Mono.defer(() -> {
+                    // New policy: client-generated UUID id + no Persistable => save() would
+                    // issue an UPDATE (see RuleRepositoryAdapter for the full explanation).
                     TierPolicyEntity entity = mapper.toEntity(tierPolicy);
                     entity.setId(UUID.randomUUID());
                     entity.setCreatedAt(Instant.now());
                     entity.setUpdatedAt(Instant.now());
-                    return repository.save(entity);
+                    return template.insert(entity);
                 }))
                 .map(mapper::toDomain);
     }

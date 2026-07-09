@@ -5,9 +5,11 @@ import com.yowyob.loyalty.domain.reward.exception.RewardNotFoundException;
 import com.yowyob.loyalty.domain.reward.model.Reward;
 import com.yowyob.loyalty.domain.reward.port.out.RewardRepository;
 import com.yowyob.loyalty.domain.shared.model.TenantId;
+import com.yowyob.loyalty.infrastructure.persistence.reward.entity.RewardEntity;
 import com.yowyob.loyalty.infrastructure.persistence.reward.mapper.RewardMapper;
 import com.yowyob.loyalty.infrastructure.persistence.reward.repository.RewardR2dbcRepository;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.r2dbc.core.R2dbcEntityTemplate;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -19,15 +21,22 @@ public class RewardRepositoryAdapter implements RewardRepository {
 
     private final RewardR2dbcRepository r2dbcRepo;
     private final RewardMapper mapper;
+    private final R2dbcEntityTemplate template;
 
-    public RewardRepositoryAdapter(RewardR2dbcRepository r2dbcRepo, RewardMapper mapper) {
+    public RewardRepositoryAdapter(RewardR2dbcRepository r2dbcRepo, RewardMapper mapper, R2dbcEntityTemplate template) {
         this.r2dbcRepo = r2dbcRepo;
         this.mapper = mapper;
+        this.template = template;
     }
 
+    // Client-generated UUID id + no Persistable => save() always issues UPDATE. Decide
+    // insert vs update explicitly (see RuleRepositoryAdapter for the full explanation).
     @Override
     public Mono<Reward> save(Reward reward) {
-        return r2dbcRepo.save(mapper.toEntity(reward)).map(mapper::toDomain);
+        RewardEntity entity = mapper.toEntity(reward);
+        return r2dbcRepo.existsById(entity.getId())
+                .flatMap(exists -> exists ? r2dbcRepo.save(entity) : template.insert(entity))
+                .map(mapper::toDomain);
     }
 
     @Override

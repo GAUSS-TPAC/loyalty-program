@@ -140,12 +140,14 @@ export interface MemberTierResponse {
 export interface RuleConditionDto {
     type: string;
     operator: string;
-    value: string;
+    thresholdValue: unknown;
+    windowType?: string | null;
+    counterKey?: string | null;
 }
 
 export interface RuleEffectDto {
     type: string;
-    value: number;
+    params: Record<string, unknown>;
 }
 
 export interface RuleTriggerDto {

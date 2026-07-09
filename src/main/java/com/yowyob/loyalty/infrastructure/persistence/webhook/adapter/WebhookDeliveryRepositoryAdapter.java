@@ -7,6 +7,7 @@ import com.yowyob.loyalty.domain.webhook.port.out.WebhookDeliveryRepository;
 import com.yowyob.loyalty.infrastructure.persistence.webhook.entity.WebhookDeliveryEntity;
 import com.yowyob.loyalty.infrastructure.persistence.webhook.repository.WebhookDeliveryR2dbcRepository;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.r2dbc.core.R2dbcEntityTemplate;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -17,14 +18,21 @@ import java.time.Instant;
 public class WebhookDeliveryRepositoryAdapter implements WebhookDeliveryRepository {
 
     private final WebhookDeliveryR2dbcRepository r2dbc;
+    private final R2dbcEntityTemplate template;
 
-    public WebhookDeliveryRepositoryAdapter(WebhookDeliveryR2dbcRepository r2dbc) {
+    public WebhookDeliveryRepositoryAdapter(WebhookDeliveryR2dbcRepository r2dbc, R2dbcEntityTemplate template) {
         this.r2dbc = r2dbc;
+        this.template = template;
     }
 
+    // Client-generated UUID id + no Persistable => save() always issues UPDATE. Decide
+    // insert vs update explicitly (see RuleRepositoryAdapter for the full explanation).
     @Override
     public Mono<WebhookDelivery> save(WebhookDelivery delivery) {
-        return r2dbc.save(toEntity(delivery)).map(this::toDomain);
+        WebhookDeliveryEntity entity = toEntity(delivery);
+        return r2dbc.existsById(entity.getId())
+                .flatMap(exists -> exists ? r2dbc.save(entity) : template.insert(entity))
+                .map(this::toDomain);
     }
 
     @Override

@@ -6,6 +6,7 @@ import com.yowyob.loyalty.domain.shared.model.TenantId;
 import com.yowyob.loyalty.infrastructure.persistence.loyalty.mapper.LoyaltyPersistenceMapper;
 import com.yowyob.loyalty.infrastructure.persistence.loyalty.repository.PointsTransactionR2dbcRepository;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.r2dbc.core.R2dbcEntityTemplate;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -16,15 +17,20 @@ public class PointsTransactionRepositoryAdapter implements PointsTransactionRepo
 
     private final PointsTransactionR2dbcRepository repository;
     private final LoyaltyPersistenceMapper mapper;
+    private final R2dbcEntityTemplate template;
 
-    public PointsTransactionRepositoryAdapter(PointsTransactionR2dbcRepository repository, LoyaltyPersistenceMapper mapper) {
+    public PointsTransactionRepositoryAdapter(PointsTransactionR2dbcRepository repository, LoyaltyPersistenceMapper mapper, R2dbcEntityTemplate template) {
         this.repository = repository;
         this.mapper = mapper;
+        this.template = template;
     }
 
+    // Points transactions are an append-only ledger (never updated), and the id is a
+    // client-generated UUID, so save() must always INSERT (see RuleRepositoryAdapter for
+    // why ReactiveCrudRepository.save() can't be trusted to do that on its own).
     @Override
     public PointsTransaction save(PointsTransaction tx) {
-        return mapper.toDomain(repository.save(mapper.toEntity(tx)).block());
+        return mapper.toDomain(template.insert(mapper.toEntity(tx)).block());
     }
 
     @Override

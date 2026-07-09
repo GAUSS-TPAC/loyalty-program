@@ -4,8 +4,10 @@ import com.yowyob.loyalty.domain.referral.exception.ReferralProgramNotFoundExcep
 import com.yowyob.loyalty.domain.referral.model.ReferralProgram;
 import com.yowyob.loyalty.domain.referral.port.out.ReferralProgramRepository;
 import com.yowyob.loyalty.domain.shared.model.TenantId;
+import com.yowyob.loyalty.infrastructure.persistence.referral.entity.ReferralProgramEntity;
 import com.yowyob.loyalty.infrastructure.persistence.referral.mapper.ReferralMapper;
 import com.yowyob.loyalty.infrastructure.persistence.referral.repository.ReferralProgramR2dbcRepository;
+import org.springframework.data.r2dbc.core.R2dbcEntityTemplate;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Mono;
 
@@ -16,15 +18,22 @@ public class ReferralProgramRepositoryAdapter implements ReferralProgramReposito
 
     private final ReferralProgramR2dbcRepository r2dbcRepo;
     private final ReferralMapper mapper;
+    private final R2dbcEntityTemplate template;
 
-    public ReferralProgramRepositoryAdapter(ReferralProgramR2dbcRepository r2dbcRepo, ReferralMapper mapper) {
+    public ReferralProgramRepositoryAdapter(ReferralProgramR2dbcRepository r2dbcRepo, ReferralMapper mapper, R2dbcEntityTemplate template) {
         this.r2dbcRepo = r2dbcRepo;
         this.mapper = mapper;
+        this.template = template;
     }
 
+    // Client-generated UUID id + no Persistable => save() always issues UPDATE. Decide
+    // insert vs update explicitly (see RuleRepositoryAdapter for the full explanation).
     @Override
     public Mono<ReferralProgram> save(ReferralProgram program) {
-        return r2dbcRepo.save(mapper.toEntity(program)).map(mapper::toDomain);
+        ReferralProgramEntity entity = mapper.toEntity(program);
+        return r2dbcRepo.existsById(entity.getId())
+                .flatMap(exists -> exists ? r2dbcRepo.save(entity) : template.insert(entity))
+                .map(mapper::toDomain);
     }
 
     @Override

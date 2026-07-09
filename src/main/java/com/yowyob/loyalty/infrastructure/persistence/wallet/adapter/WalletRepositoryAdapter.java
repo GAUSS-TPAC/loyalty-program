@@ -4,9 +4,11 @@ import com.yowyob.loyalty.domain.shared.model.TenantId;
 import com.yowyob.loyalty.domain.shared.model.UserId;
 import com.yowyob.loyalty.domain.wallet.model.Wallet;
 import com.yowyob.loyalty.domain.wallet.port.out.WalletRepository;
+import com.yowyob.loyalty.infrastructure.persistence.wallet.entity.WalletEntity;
 import com.yowyob.loyalty.infrastructure.persistence.wallet.mapper.WalletMapper;
 import com.yowyob.loyalty.infrastructure.persistence.wallet.repository.WalletR2dbcRepository;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.r2dbc.core.R2dbcEntityTemplate;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -16,10 +18,12 @@ import java.util.UUID;
 public class WalletRepositoryAdapter implements WalletRepository {
     private final WalletR2dbcRepository r2dbcRepo;
     private final WalletMapper mapper;
+    private final R2dbcEntityTemplate template;
 
-    public WalletRepositoryAdapter(WalletR2dbcRepository r2dbcRepo, WalletMapper mapper) {
+    public WalletRepositoryAdapter(WalletR2dbcRepository r2dbcRepo, WalletMapper mapper, R2dbcEntityTemplate template) {
         this.r2dbcRepo = r2dbcRepo;
         this.mapper = mapper;
+        this.template = template;
     }
 
     @Override
@@ -33,9 +37,14 @@ public class WalletRepositoryAdapter implements WalletRepository {
         return r2dbcRepo.findById(id).map(mapper::toDomain);
     }
 
+    // Client-generated UUID id + no Persistable => save() always issues UPDATE. Decide
+    // insert vs update explicitly (see RuleRepositoryAdapter for the full explanation).
     @Override
     public Mono<Wallet> save(Wallet wallet) {
-        return r2dbcRepo.save(mapper.toEntity(wallet)).map(mapper::toDomain);
+        WalletEntity entity = mapper.toEntity(wallet);
+        return r2dbcRepo.existsById(entity.getId())
+                .flatMap(exists -> exists ? r2dbcRepo.save(entity) : template.insert(entity))
+                .map(mapper::toDomain);
     }
 
     @Override

@@ -7,6 +7,7 @@ import com.yowyob.loyalty.domain.wallet.port.out.WalletTransactionRepository;
 import com.yowyob.loyalty.infrastructure.persistence.wallet.mapper.WalletTransactionMapper;
 import com.yowyob.loyalty.infrastructure.persistence.wallet.repository.WalletTransactionR2dbcRepository;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.r2dbc.core.R2dbcEntityTemplate;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -21,18 +22,24 @@ public class WalletTransactionRepositoryAdapter implements WalletTransactionRepo
 
     private final WalletTransactionR2dbcRepository repository;
     private final WalletTransactionMapper mapper;
+    private final R2dbcEntityTemplate template;
 
     public WalletTransactionRepositoryAdapter(
             WalletTransactionR2dbcRepository repository,
-            WalletTransactionMapper mapper
+            WalletTransactionMapper mapper,
+            R2dbcEntityTemplate template
     ) {
         this.repository = repository;
         this.mapper = mapper;
+        this.template = template;
     }
 
+    // Wallet transactions are an append-only ledger (never updated), and the id is a
+    // client-generated UUID, so save() must always INSERT (see RuleRepositoryAdapter for
+    // why ReactiveCrudRepository.save() can't be trusted to do that on its own).
     @Override
     public Mono<WalletTransaction> save(WalletTransaction transaction) {
-        return repository.save(mapper.toEntity(transaction)).map(mapper::toDomain);
+        return template.insert(mapper.toEntity(transaction)).map(mapper::toDomain);
     }
 
     @Override

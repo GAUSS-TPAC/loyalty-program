@@ -4,8 +4,10 @@ import com.yowyob.loyalty.domain.loyalty.model.counter.Counter;
 import com.yowyob.loyalty.domain.loyalty.port.out.CounterRepository;
 import com.yowyob.loyalty.domain.shared.model.TenantId;
 import com.yowyob.loyalty.domain.shared.model.UserId;
+import com.yowyob.loyalty.infrastructure.persistence.loyalty.entity.CounterEntity;
 import com.yowyob.loyalty.infrastructure.persistence.loyalty.mapper.LoyaltyPersistenceMapper;
 import com.yowyob.loyalty.infrastructure.persistence.loyalty.repository.CounterR2dbcRepository;
+import org.springframework.data.r2dbc.core.R2dbcEntityTemplate;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -16,15 +18,22 @@ public class CounterRepositoryAdapter implements CounterRepository {
 
     private final CounterR2dbcRepository repository;
     private final LoyaltyPersistenceMapper mapper;
+    private final R2dbcEntityTemplate template;
 
-    public CounterRepositoryAdapter(CounterR2dbcRepository repository, LoyaltyPersistenceMapper mapper) {
+    public CounterRepositoryAdapter(CounterR2dbcRepository repository, LoyaltyPersistenceMapper mapper, R2dbcEntityTemplate template) {
         this.repository = repository;
         this.mapper = mapper;
+        this.template = template;
     }
 
+    // Client-generated UUID id + no Persistable => save() always issues UPDATE. Decide
+    // insert vs update explicitly (see RuleRepositoryAdapter for the full explanation).
     @Override
     public Counter save(Counter counter) {
-        return mapper.toDomain(repository.save(mapper.toEntity(counter)).block());
+        CounterEntity entity = mapper.toEntity(counter);
+        boolean exists = Boolean.TRUE.equals(repository.existsById(entity.getId()).block());
+        CounterEntity saved = exists ? repository.save(entity).block() : template.insert(entity).block();
+        return mapper.toDomain(saved);
     }
 
     @Override

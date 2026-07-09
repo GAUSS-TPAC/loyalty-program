@@ -76,8 +76,17 @@ export default function RulesConfiguration() {
         name,
         description,
         trigger: { eventType },
-        conditions: [],
-        effects: [{ type: "CREDIT_POINTS", value: Number(effectValue) }],
+        // No condition builder in this form yet: an always-true condition makes the
+        // rule trigger on every matching event, which is what this simplified form implies.
+        conditions: [
+          {
+            type: "CUMULATIVE_COUNT",
+            operator: "GREATER_THAN_OR_EQUAL",
+            thresholdValue: 0,
+            counterKey: `${eventType}_count`,
+          },
+        ],
+        effects: [{ type: "CREDIT_POINTS", params: { amount: Number(effectValue) } }],
         priority: Number(priority),
         validFrom: new Date(validFrom).toISOString(),
         validUntil: null,
@@ -389,7 +398,7 @@ export default function RulesConfiguration() {
                     </td>
                     <td className="px-6 py-4 font-semibold text-primary font-mono">
                       +
-                      {rule.effects?.[0]?.value ?? "—"}{" "}
+                      {(rule.effects?.[0]?.params?.amount as number | undefined) ?? "—"}{" "}
                       <span className="text-xs font-normal text-muted-foreground">
                         pts
                       </span>

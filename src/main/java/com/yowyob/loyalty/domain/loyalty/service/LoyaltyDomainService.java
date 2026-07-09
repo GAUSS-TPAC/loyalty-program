@@ -90,8 +90,14 @@ public class LoyaltyDomainService implements ProcessEventUseCase, CreateRuleUseC
         }
 
         // 2. Load Evaluation Context
-        PointsAccount pointsAccount = pointsRepo.findByMemberId(event.tenantId(), event.memberId())
+        Optional<PointsAccount> existingAccount = pointsRepo.findByMemberId(event.tenantId(), event.memberId());
+        PointsAccount pointsAccount = existingAccount
                 .orElseGet(() -> PointsAccount.create(UUID.randomUUID(), event.tenantId(), event.memberId()));
+        if (existingAccount.isEmpty()) {
+            // Persist the brand-new account before any points_transactions row below can
+            // reference its id (points_transactions.points_account_id has a FK to it).
+            pointsAccount = pointsRepo.save(pointsAccount);
+        }
 
         MemberTier memberTier = tierRepo.findByMemberId(event.tenantId(), event.memberId())
                 .orElseGet(() -> MemberTier.defaultTier(UUID.randomUUID(), event.tenantId(), event.memberId()));

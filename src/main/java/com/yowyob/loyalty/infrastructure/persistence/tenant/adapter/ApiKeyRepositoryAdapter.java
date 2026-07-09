@@ -6,6 +6,7 @@ import com.yowyob.loyalty.domain.tenant.model.enums.ApiKeyMode;
 import com.yowyob.loyalty.domain.tenant.port.out.ApiKeyRepository;
 import com.yowyob.loyalty.infrastructure.persistence.tenant.entity.ApiKeyEntity;
 import com.yowyob.loyalty.infrastructure.persistence.tenant.repository.ApiKeyR2dbcRepository;
+import org.springframework.data.r2dbc.core.R2dbcEntityTemplate;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -16,9 +17,11 @@ import java.util.UUID;
 public class ApiKeyRepositoryAdapter implements ApiKeyRepository {
 
     private final ApiKeyR2dbcRepository r2dbc;
+    private final R2dbcEntityTemplate template;
 
-    public ApiKeyRepositoryAdapter(ApiKeyR2dbcRepository r2dbc) {
+    public ApiKeyRepositoryAdapter(ApiKeyR2dbcRepository r2dbc, R2dbcEntityTemplate template) {
         this.r2dbc = r2dbc;
+        this.template = template;
     }
 
     @Override
@@ -31,9 +34,14 @@ public class ApiKeyRepositoryAdapter implements ApiKeyRepository {
         return r2dbc.findByTenantId(tenantId.value()).map(this::toDomain);
     }
 
+    // Client-generated UUID id + no Persistable => save() always issues UPDATE. Decide
+    // insert vs update explicitly (see RuleRepositoryAdapter for the full explanation).
     @Override
     public Mono<ApiKey> save(ApiKey key) {
-        return r2dbc.save(toEntity(key)).map(this::toDomain);
+        ApiKeyEntity entity = toEntity(key);
+        return r2dbc.existsById(entity.getId())
+                .flatMap(exists -> exists ? r2dbc.save(entity) : template.insert(entity))
+                .map(this::toDomain);
     }
 
     @Override
