@@ -28,27 +28,29 @@ public class WalletTransactionEntity {
     
     private String type;
     private BigDecimal amount;
-    
-    @Column("balance_before")
-    private BigDecimal balanceBefore;
-    
+
+    private String currency;
+
     @Column("balance_after")
     private BigDecimal balanceAfter;
-    
+
     private String status;
     private String source;
-    
+
     @Column("idempotency_key")
     private String idempotencyKey;
-    
-    @Column("reference_id")
+
+    @Column("payment_request_id")
     private UUID referenceId;
-    
-    @Column("reversal_of")
+
+    @Column("original_transaction_id")
     private UUID reversalOf;
-    
+
     private String metadata; // Stocké en JSON
-    
+
     @Column("created_at")
     private Instant createdAt;
+
+    @Column("completed_at")
+    private Instant completedAt;
 }

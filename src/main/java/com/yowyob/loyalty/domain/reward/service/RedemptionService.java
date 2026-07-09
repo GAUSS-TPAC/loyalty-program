@@ -15,6 +15,7 @@ import com.yowyob.loyalty.domain.reward.port.out.RewardEventPublisherPort;
 import com.yowyob.loyalty.domain.reward.port.out.RewardGrantRepository;
 import com.yowyob.loyalty.domain.reward.port.out.RewardRepository;
 import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -49,6 +50,7 @@ public class RedemptionService implements RedeemRewardUseCase {
                     return Mono.fromCallable(() ->
                             pointsRepo.findByMemberId(request.tenantId(), request.memberId())
                                     .orElseThrow(() -> new InsufficientPointsException(reward.costInPoints(), 0)))
+                            .subscribeOn(Schedulers.boundedElastic())
                             .flatMap(account -> {
                                 if (!account.hasEnoughPoints(reward.costInPoints()))
                                     return Mono.error(new InsufficientPointsException(
@@ -64,7 +66,7 @@ public class RedemptionService implements RedeemRewardUseCase {
                                             pointsRepo.save(updatedAccount);
                                             pointsTxRepo.save(tx);
                                             return updatedAccount;
-                                        }))
+                                        }).subscribeOn(Schedulers.boundedElastic()))
                                         .flatMap(saved -> {
                                             RewardGrant grant = RewardGrant.create(UUID.randomUUID(),
                                                     request.tenantId(), request.memberId(),

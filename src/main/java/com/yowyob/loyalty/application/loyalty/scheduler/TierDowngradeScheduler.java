@@ -44,6 +44,7 @@ public class TierDowngradeScheduler {
         for (MemberTier tier : candidates) {
             try {
                 TierPolicy policy = tierPolicyRepository.findByTenantId(tier.tenantId())
+                        .blockOptional()
                         .orElseGet(() -> TierPolicy.defaults(tier.tenantId()));
 
                 var accountOpt = pointsAccountRepository.findByMemberId(tier.tenantId(), tier.memberId());

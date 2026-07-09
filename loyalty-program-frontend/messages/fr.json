@@ -188,6 +188,7 @@
     "createRule": "Créer la Règle"
   },
   "Dashboard": {
+    "welcome": "Bienvenue",
     "title": "Vue d'ensemble du Programme",
     "description": "Indicateurs clés en temps réel, répartition des membres actifs et activité récente de la campagne.",
     "totalMembers": "Membres Totaux",

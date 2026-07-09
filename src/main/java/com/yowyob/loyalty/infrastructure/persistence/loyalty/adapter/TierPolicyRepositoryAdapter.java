@@ -11,7 +11,6 @@ import org.springframework.stereotype.Component;
 import reactor.core.publisher.Mono;
 
 import java.time.Instant;
-import java.util.Optional;
 import java.util.UUID;
 
 @Component
@@ -28,10 +27,9 @@ public class TierPolicyRepositoryAdapter implements TierPolicyRepository {
     }
 
     @Override
-    public Optional<TierPolicy> findByTenantId(TenantId tenantId) {
+    public Mono<TierPolicy> findByTenantId(TenantId tenantId) {
         return repository.findByTenantId(tenantId.value())
-                .map(mapper::toDomain)
-                .blockOptional();
+                .map(mapper::toDomain);
     }
 
     @Override

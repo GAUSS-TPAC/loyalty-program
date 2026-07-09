@@ -188,7 +188,7 @@ class LoyaltyDomainServiceTest {
     }
 
     static class InMemoryTierPolicyRepository implements TierPolicyRepository {
-        @Override public Optional<TierPolicy> findByTenantId(TenantId t) { return Optional.empty(); }
+        @Override public reactor.core.publisher.Mono<TierPolicy> findByTenantId(TenantId t) { return reactor.core.publisher.Mono.empty(); }
         @Override public reactor.core.publisher.Mono<TierPolicy> save(TierPolicy p) { return reactor.core.publisher.Mono.just(p); }
     }
 

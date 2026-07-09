@@ -74,8 +74,8 @@ public class WalletDomainService implements
                 WalletCreditResult result = wallet.credit(amount, policy);
                 
                 WalletTransaction tx = WalletTransaction.create(
-                    wallet.getId(), tenantId, TransactionType.CREDIT, amount, 
-                    balanceBefore, wallet.getBalance(), source, idempotencyKey
+                    wallet.getId(), tenantId, TransactionType.CREDIT, amount, wallet.getCurrencyCode(),
+                    balanceBefore, wallet.getBalance(), source, resolveIdempotencyKey(idempotencyKey)
                 );
                 
                 // Note : referenceId n'est pas dans create() par défaut dans WalletTransaction record, 
@@ -109,8 +109,8 @@ public class WalletDomainService implements
                         }
                         
                         WalletTransaction tx = WalletTransaction.create(
-                            wallet.getId(), tenantId, TransactionType.DEBIT, amount,
-                            balanceBefore, wallet.getBalance(), TransactionSource.PURCHASE, idempotencyKey
+                            wallet.getId(), tenantId, TransactionType.DEBIT, amount, wallet.getCurrencyCode(),
+                            balanceBefore, wallet.getBalance(), TransactionSource.PURCHASE, resolveIdempotencyKey(idempotencyKey)
                         );
                         
                         return walletRepo.save(wallet)
@@ -182,12 +182,21 @@ public class WalletDomainService implements
                 }
                 return walletRepo.findById(original.walletId())
                     .flatMap(wallet -> {
-                        WalletTransaction reversal = wallet.applyReversal(original, idempotencyKey);
+                        WalletTransaction reversal = wallet.applyReversal(original, resolveIdempotencyKey(idempotencyKey));
                         return walletRepo.save(wallet)
                             .then(txRepo.save(reversal))
                             .then(auditRepo.log(wallet.getId(), tenantId, "REVERSAL", actorId, reason, Map.of("originalTxId", transactionId.toString())))
                             .thenReturn(reversal);
                     });
             });
+    }
+
+    // idempotency_key est NOT NULL + UNIQUE(tenant_id) en base ; le client n'est pas
+    // obligé de le fournir (CreditRequest/DebitRequest ne l'exigent pas), donc on en
+    // génère un pour lui quand absent afin que chaque appel reste malgré tout distinct.
+    private static String resolveIdempotencyKey(String idempotencyKey) {
+        return (idempotencyKey == null || idempotencyKey.isBlank())
+                ? UUID.randomUUID().toString()
+                : idempotencyKey;
     }
 }

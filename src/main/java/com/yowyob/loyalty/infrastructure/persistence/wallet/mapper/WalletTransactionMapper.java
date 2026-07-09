@@ -29,7 +29,10 @@ public class WalletTransactionMapper {
                 TenantId.of(entity.getTenantId()),
                 TransactionType.valueOf(entity.getType()),
                 entity.getAmount(),
-                entity.getBalanceBefore(),
+                entity.getCurrency(),
+                // balance_before n'est pas persisté (ledger append-only : seul balance_after
+                // sert de snapshot de réconciliation, voir V002__create_wallet_transactions_table.sql)
+                null,
                 entity.getBalanceAfter(),
                 TransactionStatus.valueOf(entity.getStatus()),
                 TransactionSource.valueOf(entity.getSource()),
@@ -37,7 +40,8 @@ public class WalletTransactionMapper {
                 entity.getReferenceId(),
                 entity.getReversalOf(),
                 readMetadata(entity.getMetadata()),
-                entity.getCreatedAt()
+                entity.getCreatedAt(),
+                entity.getCompletedAt()
         );
     }
 
@@ -48,7 +52,7 @@ public class WalletTransactionMapper {
                 .tenantId(domain.tenantId().value())
                 .type(domain.type().name())
                 .amount(domain.amount())
-                .balanceBefore(domain.balanceBefore())
+                .currency(domain.currency())
                 .balanceAfter(domain.balanceAfter())
                 .status(domain.status().name())
                 .source(domain.source().name())
@@ -57,6 +61,7 @@ public class WalletTransactionMapper {
                 .reversalOf(domain.reversalOf())
                 .metadata(writeMetadata(domain.metadata()))
                 .createdAt(domain.createdAt())
+                .completedAt(domain.completedAt())
                 .build();
     }
 

@@ -18,9 +18,8 @@ public class TierPolicyHandler implements UpdateTierPolicyUseCase {
 
     @Override
     public Mono<TierPolicy> getTierPolicy(TenantId tenantId) {
-        return Mono.fromCallable(() ->
-                tierPolicyRepository.findByTenantId(tenantId)
-                        .orElseGet(() -> TierPolicy.defaults(tenantId)));
+        return tierPolicyRepository.findByTenantId(tenantId)
+                .switchIfEmpty(Mono.fromSupplier(() -> TierPolicy.defaults(tenantId)));
     }
 
     @Override

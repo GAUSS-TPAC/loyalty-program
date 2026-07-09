@@ -1,9 +1,8 @@
 "use client";
 
+import { useState } from "react";
 import {
   Wallet,
-  TrendingUp,
-  TrendingDown,
   ShieldAlert,
   ShieldCheck,
   Clock,
@@ -11,8 +10,13 @@ import {
   RefreshCw,
   ArrowUpRight,
   ArrowDownLeft,
+  User,
 } from "lucide-react";
-import { useWallet, useWalletTransactions } from "@/hooks/useBackend";
+import {
+  useAdminMembers,
+  useMemberWallet,
+  useMemberWalletTransactions,
+} from "@/hooks/useBackend";
 
 // ─── Badge statut wallet ──────────────────────────────────────────────────────
 
@@ -45,18 +49,24 @@ function WalletStatusBadge({ status }: { status: string }) {
 // ─── Composant principal ───────────────────────────────────────────────────────
 
 export default function WalletConfigPage() {
+  const { data: members, isLoading: membersLoading } = useAdminMembers(0, 100);
+  const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
+  // Tant que l'utilisateur n'a rien choisi explicitement, on retombe sur le premier
+  // membre de la liste (dérivé au rendu, pas de setState dans un effet).
+  const effectiveMemberId = selectedMemberId ?? members?.[0]?.memberId ?? null;
+
   const {
     data: wallet,
     isLoading: walletLoading,
     error: walletError,
     refetch: refetchWallet,
-  } = useWallet();
+  } = useMemberWallet(effectiveMemberId);
   const {
     data: transactions,
     isLoading: txLoading,
     error: txError,
     refetch: refetchTx,
-  } = useWalletTransactions(0, 20);
+  } = useMemberWalletTransactions(effectiveMemberId, 0, 20);
 
   const policy = wallet
     ? {
@@ -80,15 +90,36 @@ export default function WalletConfigPage() {
             Solde en temps réel et historique des transactions du wallet.
           </p>
         </div>
-        <button
-          onClick={() => {
-            refetchWallet();
-            refetchTx();
-          }}
-          className="inline-flex items-center gap-2 text-xs font-medium text-muted-foreground hover:text-foreground border border-border px-3 py-2 rounded-lg hover:bg-secondary transition-all"
-        >
-          <RefreshCw className="w-3.5 h-3.5" /> Rafraîchir
-        </button>
+        <div className="flex items-center gap-3">
+          <div className="relative">
+            <User className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+            <select
+              value={effectiveMemberId ?? ""}
+              onChange={(e) => setSelectedMemberId(e.target.value || null)}
+              disabled={membersLoading || !members || members.length === 0}
+              className="appearance-none text-xs font-medium border border-border rounded-lg pl-8 pr-3 py-2 bg-card hover:bg-secondary transition-all disabled:opacity-50 font-mono"
+            >
+              {membersLoading && <option>Chargement…</option>}
+              {!membersLoading && (!members || members.length === 0) && (
+                <option>Aucun membre</option>
+              )}
+              {members?.map((m) => (
+                <option key={m.memberId} value={m.memberId}>
+                  {m.memberId.substring(0, 8)}… ({m.balance.toLocaleString()} {m.currencyCode})
+                </option>
+              ))}
+            </select>
+          </div>
+          <button
+            onClick={() => {
+              refetchWallet();
+              refetchTx();
+            }}
+            className="inline-flex items-center gap-2 text-xs font-medium text-muted-foreground hover:text-foreground border border-border px-3 py-2 rounded-lg hover:bg-secondary transition-all"
+          >
+            <RefreshCw className="w-3.5 h-3.5" /> Rafraîchir
+          </button>
+        </div>
       </div>
 
       {/* ── Erreur ──────────────────────────────────────────────────────────── */}

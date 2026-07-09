@@ -7,9 +7,8 @@
  * avec gestion du loading, de l'erreur et du rafraîchissement automatique.
  */
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import {
-    walletApi,
     memberApi,
     rulesApi,
     bonificationApi,
@@ -52,45 +51,65 @@ interface UseQueryResult<T> {
     refetch: () => void;
 }
 
-function useQuery<T>(fetchFn: () => Promise<T>): UseQueryResult<T> {
+function useQuery<T>(fetchFn: () => Promise<T>, deps: unknown[] = []): UseQueryResult<T> {
     const [data, setData] = useState<T | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+
+    // fetchFn est recréée à chaque rendu (closure sur memberId/page/etc.) ; on la lit
+    // via ref pour que `load` reste une référence stable tout en appelant la version
+    // la plus récente (évite le bug de closure figée d'un useCallback à deps []).
+    const fetchFnRef = useRef(fetchFn);
+    useEffect(() => {
+        fetchFnRef.current = fetchFn;
+    });
 
     const load = useCallback(async () => {
         setIsLoading(true);
         setError(null);
         try {
-            const result = await fetchFn();
+            const result = await fetchFnRef.current();
             setData(result);
         } catch (err) {
             setError(err instanceof Error ? err.message : "Erreur inconnue");
         } finally {
             setIsLoading(false);
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
+    // La liste `deps` est dynamique (générique) : on la réduit à une clé stable pour
+    // fournir un littéral de tableau à useEffect (exigé par le linter react-hooks).
+    const depsKey = JSON.stringify(deps);
     useEffect(() => {
         load();
-    }, [load]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [depsKey]);
 
     return { data, isLoading, error, refetch: load };
 }
 
 // ─── Hooks Wallet ─────────────────────────────────────────────────────────────
 
-/** Retourne le wallet du membre connecté */
-export function useWallet(): UseQueryResult<WalletResponse> {
-    return useQuery(() => walletApi.getWallet());
+/** Retourne le wallet d'un membre donné (portail admin : pas de wallet "personnel") */
+export function useMemberWallet(
+    memberId: string | null
+): UseQueryResult<WalletResponse> {
+    return useQuery(() => {
+        if (!memberId) return Promise.reject(new Error("memberId manquant"));
+        return memberApi.getWallet(memberId);
+    }, [memberId]);
 }
 
-/** Retourne l'historique des transactions du wallet */
-export function useWalletTransactions(
+/** Retourne l'historique des transactions du wallet d'un membre donné */
+export function useMemberWalletTransactions(
+    memberId: string | null,
     page = 0,
     size = 20
 ): UseQueryResult<WalletTransaction[]> {
-    return useQuery(() => walletApi.getTransactions(page, size));
+    return useQuery(() => {
+        if (!memberId) return Promise.reject(new Error("memberId manquant"));
+        return memberApi.getWalletTransactions(memberId, page, size);
+    }, [memberId, page, size]);
 }
 
 // ─── Hooks Members / Loyalty ─────────────────────────────────────────────────
@@ -102,7 +121,7 @@ export function useMemberPoints(
     return useQuery(() => {
         if (!memberId) return Promise.reject(new Error("memberId manquant"));
         return memberApi.getPoints(memberId);
-    });
+    }, [memberId]);
 }
 
 /** Retourne l'historique des points d'un membre */
@@ -114,7 +133,7 @@ export function useMemberPointsHistory(
     return useQuery(() => {
         if (!memberId) return Promise.reject(new Error("memberId manquant"));
         return memberApi.getPointsHistory(memberId, page, size);
-    });
+    }, [memberId, page, size]);
 }
 
 /** Retourne le tier (niveau) d'un membre */
@@ -124,7 +143,7 @@ export function useMemberTier(
     return useQuery(() => {
         if (!memberId) return Promise.reject(new Error("memberId manquant"));
         return memberApi.getTier(memberId);
-    });
+    }, [memberId]);
 }
 
 // ─── Hooks Règles ─────────────────────────────────────────────────────────────
@@ -196,7 +215,7 @@ export function useWebhookDeliveries(
     page = 0,
     size = 20
 ): UseQueryResult<WebhookDeliveryResponse[]> {
-    return useQuery(() => webhookApi.listDeliveries(page, size));
+    return useQuery(() => webhookApi.listDeliveries(page, size), [page, size]);
 }
 
 // ─── Hooks Admin (Annuaire Membres / Tier Policy / Logs) ─────────────────────
@@ -206,7 +225,7 @@ export function useAdminMembers(
     page = 0,
     size = 20
 ): UseQueryResult<MemberSummaryResponse[]> {
-    return useQuery(() => adminMembersApi.list(page, size));
+    return useQuery(() => adminMembersApi.list(page, size), [page, size]);
 }
 
 /** Retourne la politique de tier (paliers) du tenant */
@@ -219,5 +238,5 @@ export function useAdminLogs(
     page = 0,
     size = 20
 ): UseQueryResult<PointsTransactionLogResponse[]> {
-    return useQuery(() => adminLogsApi.listPointsTransactions(page, size));
+    return useQuery(() => adminLogsApi.listPointsTransactions(page, size), [page, size]);
 }
