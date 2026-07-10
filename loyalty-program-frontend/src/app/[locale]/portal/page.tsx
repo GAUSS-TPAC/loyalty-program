@@ -21,7 +21,7 @@ export default function DashboardPage() {
   // Real data hooks
   const { data: members, isLoading: membersLoading, refetch: refetchMembers } = useAdminMembers(0, 100);
   const { data: rules, isLoading: rulesLoading, refetch: refetchRules } = useRules();
-  const { data: health, isLoading: healthLoading, refetch: refetchHealth } = useBackendHealth();
+  const { data: health, isLoading: healthLoading, error: healthError, refetch: refetchHealth } = useBackendHealth();
 
   const handleRefresh = () => {
     refetchMembers();
@@ -31,6 +31,9 @@ export default function DashboardPage() {
 
   // Metrics calculation
   const activeRulesCount = rules?.filter(r => r.status === 'ACTIVE').length ?? 0;
+  // Tant que le premier health check n'a pas répondu, le statut est inconnu —
+  // ne pas afficher "OFFLINE" avant d'avoir une réponse réelle du backend.
+  const healthChecked = health !== null || healthError !== null;
   const isSystemHealthy = health?.status === 'UP';
   const globalWalletBalance = members?.reduce((sum, m) => sum + m.balance, 0) ?? 0;
   const walletCurrency = members?.[0]?.currencyCode ?? "";
@@ -91,10 +94,10 @@ export default function DashboardPage() {
           >
             <RefreshCw className={`w-4 h-4 ${membersLoading || rulesLoading || healthLoading ? 'animate-spin' : ''}`} />
           </button>
-          <div className={`px-4 py-2 rounded-full flex items-center gap-2.5 border text-xs font-bold tracking-tight shadow-sm ${isSystemHealthy ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-rose-50 border-rose-200 text-rose-700'
+          <div className={`px-4 py-2 rounded-full flex items-center gap-2.5 border text-xs font-bold tracking-tight shadow-sm ${!healthChecked ? 'bg-amber-50 border-amber-200 text-amber-700' : isSystemHealthy ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-rose-50 border-rose-200 text-rose-700'
             }`}>
-            <div className={`w-2.5 h-2.5 rounded-full ${isSystemHealthy ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`} />
-            BACKEND : {isSystemHealthy ? 'ONLINE' : 'OFFLINE'}
+            <div className={`w-2.5 h-2.5 rounded-full ${!healthChecked ? 'bg-amber-500 animate-pulse' : isSystemHealthy ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`} />
+            BACKEND : {!healthChecked ? 'VÉRIFICATION...' : isSystemHealthy ? 'ONLINE' : 'OFFLINE'}
           </div>
         </div>
       </div>
@@ -146,33 +149,34 @@ export default function DashboardPage() {
           <div className="p-8 space-y-8 flex-1">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
               <div className="space-y-5">
-                <div className="space-y-2.5">
-                  <div className="flex justify-between items-center text-xs font-bold uppercase tracking-widest text-muted-foreground">
-                    <span>R2DBC POOL</span>
-                    <span className="text-emerald-600 font-mono">OK</span>
+                {health?.components ? (
+                  Object.entries(health.components).map(([name, comp]) => (
+                    <div key={name} className="space-y-2.5">
+                      <div className="flex justify-between items-center text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                        <span>{name}</span>
+                        <span className={`font-mono ${comp.status === 'UP' ? 'text-emerald-600' : 'text-rose-600'}`}>{comp.status}</span>
+                      </div>
+                      <div className="h-2 bg-secondary rounded-full overflow-hidden">
+                        <div className={`h-full w-full transition-all duration-1000 ${comp.status === 'UP' ? 'bg-emerald-500' : 'bg-rose-500'}`} />
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="space-y-2.5">
+                    <div className="flex justify-between items-center text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                      <span>API Backend</span>
+                      <span className={`font-mono ${!healthChecked ? 'text-amber-600' : isSystemHealthy ? 'text-emerald-600' : 'text-rose-600'}`}>
+                        {!healthChecked ? 'VÉRIFICATION' : isSystemHealthy ? 'UP' : 'DOWN'}
+                      </span>
+                    </div>
+                    <div className="h-2 bg-secondary rounded-full overflow-hidden">
+                      <div className={`h-full transition-all duration-1000 ${!healthChecked ? 'bg-amber-500 w-1/2' : isSystemHealthy ? 'bg-emerald-500 w-full' : 'bg-rose-500 w-full'}`} />
+                    </div>
+                    <p className="text-[10px] text-muted-foreground normal-case tracking-normal pt-1">
+                      Détail par composant (DB, Kafka, Redis) indisponible : /actuator/health n&apos;expose pas les sous-systèmes hors accès authentifié.
+                    </p>
                   </div>
-                  <div className="h-2 bg-secondary rounded-full overflow-hidden">
-                    <div className="h-full bg-emerald-500 w-[100%] transition-all duration-1000" />
-                  </div>
-                </div>
-                <div className="space-y-2.5">
-                  <div className="flex justify-between items-center text-xs font-bold uppercase tracking-widest text-muted-foreground">
-                    <span>Kafka Brokers</span>
-                    <span className="text-primary font-mono tracking-normal">CONNECTED</span>
-                  </div>
-                  <div className="h-2 bg-secondary rounded-full overflow-hidden">
-                    <div className="h-full bg-primary w-[100%] transition-all duration-1000" />
-                  </div>
-                </div>
-                <div className="space-y-2.5">
-                  <div className="flex justify-between items-center text-xs font-bold uppercase tracking-widest text-muted-foreground">
-                    <span>Redis Sentinel</span>
-                    <span className="text-emerald-600 font-mono">ACTIVE</span>
-                  </div>
-                  <div className="h-2 bg-secondary rounded-full overflow-hidden">
-                    <div className="h-full bg-emerald-500 w-[100%] transition-all duration-1000" />
-                  </div>
-                </div>
+                )}
               </div>
 
               <div className="bg-muted/30 rounded-2xl p-6 border border-border flex flex-col justify-center space-y-4">

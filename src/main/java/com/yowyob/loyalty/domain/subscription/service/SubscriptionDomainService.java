@@ -96,14 +96,16 @@ public class SubscriptionDomainService implements
                         existing.changePlan(planId);
                         existing.activate();
                         existing.renew();
-                        return generateInvoice(existing, planId, cycle)
-                                .then(subscriptionRepository.save(existing));
+                        // La ligne subscription doit exister en base avant l'insertion de la facture
+                        // (invoice_records.subscription_id référence subscriptions.id par FK).
+                        return subscriptionRepository.save(existing)
+                                .flatMap(saved -> generateInvoice(saved, planId, cycle).thenReturn(saved));
                     }
                     if (existing.status().isTerminal()) {
                         // allow resubscribe after cancellation/expiry
                         TenantSubscription sub = TenantSubscription.createActive(tenantId, planId, cycle);
-                        return generateInvoice(sub, planId, cycle)
-                                .then(subscriptionRepository.save(sub));
+                        return subscriptionRepository.save(sub)
+                                .flatMap(saved -> generateInvoice(saved, planId, cycle).thenReturn(saved));
                     }
                     return Mono.<TenantSubscription>error(
                             new AlreadySubscribedException(tenantId.value().toString()));
@@ -111,8 +113,8 @@ public class SubscriptionDomainService implements
                 .switchIfEmpty(
                         getPlanById(planId).flatMap(plan -> {
                             TenantSubscription sub = TenantSubscription.createActive(tenantId, planId, cycle);
-                            return generateInvoice(sub, planId, cycle)
-                                    .then(subscriptionRepository.save(sub));
+                            return subscriptionRepository.save(sub)
+                                    .flatMap(saved -> generateInvoice(saved, planId, cycle).thenReturn(saved));
                         })
                 );
     }
