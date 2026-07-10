@@ -8,12 +8,15 @@ import {
   ArrowDownRight,
   ShieldCheck,
   Zap,
+  Key,
+  Webhook,
   LayoutDashboard,
   RefreshCw,
   ChevronRight
 } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useAdminMembers, useRules, useBackendHealth } from "@/hooks/useBackend";
+import { Link } from "@/i18n/routing";
+import { useAdminMembers, useRules, useBackendHealth, useBonificationStatus } from "@/hooks/useBackend";
 
 export default function DashboardPage() {
   const t = useTranslations("Dashboard");
@@ -22,11 +25,13 @@ export default function DashboardPage() {
   const { data: members, isLoading: membersLoading, refetch: refetchMembers } = useAdminMembers(0, 100);
   const { data: rules, isLoading: rulesLoading, refetch: refetchRules } = useRules();
   const { data: health, isLoading: healthLoading, error: healthError, refetch: refetchHealth } = useBackendHealth();
+  const { data: bonification, isLoading: bonificationLoading, refetch: refetchBonification } = useBonificationStatus();
 
   const handleRefresh = () => {
     refetchMembers();
     refetchRules();
     refetchHealth();
+    refetchBonification();
   };
 
   // Metrics calculation
@@ -64,12 +69,12 @@ export default function DashboardPage() {
       loading: healthLoading
     },
     {
-      title: "Taux d'Engagement",
-      value: "100%",
-      change: "+2.1%",
+      title: "Membres",
+      value: members?.length.toString() ?? "—",
+      change: "annuaire du tenant",
       isPositive: true,
       icon: Target,
-      loading: false
+      loading: membersLoading
     }
   ];
 
@@ -79,10 +84,10 @@ export default function DashboardPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="space-y-1">
           <h1 className="text-3xl font-semibold tracking-tight text-foreground">
-            <span className="text-primary">{t("welcome")}</span>, Admin
+            <span className="text-primary">{t("welcome")}</span>
           </h1>
           <p className="text-muted-foreground text-sm font-sans italic">
-            Dashboard consolidé du programme de fidélité.
+            Espace développeur — vue d&apos;ensemble de votre tenant.
           </p>
         </div>
 
@@ -141,9 +146,8 @@ export default function DashboardPage() {
           <div className="bg-secondary/50 px-6 py-4 border-b border-border flex items-center justify-between">
             <div className="flex items-center gap-3 font-bold text-foreground">
               <Activity className="w-5 h-5 text-primary" />
-              Services Infrastructure
+              Santé du Backend
             </div>
-            <span className="text-[10px] font-bold bg-primary/10 text-primary px-2 py-0.5 rounded border border-primary/20">AWS CAMEROUN</span>
           </div>
 
           <div className="p-8 space-y-8 flex-1">
@@ -203,10 +207,15 @@ export default function DashboardPage() {
           </div>
 
           <div className="px-6 py-4 bg-muted/20 border-t border-border flex justify-between items-center">
-            <span className="text-[10px] text-muted-foreground font-mono uppercase tracking-widest">Version v1.2.4-stable</span>
-            <button className="text-[10px] uppercase font-bold text-primary hover:underline flex items-center gap-1.5">
-              Consulter Actuator <ChevronRight className="w-3 h-3" />
-            </button>
+            <span className="text-[10px] text-muted-foreground font-mono uppercase tracking-widest">
+              {activeRulesCount} règle{activeRulesCount > 1 ? "s" : ""} active{activeRulesCount > 1 ? "s" : ""}
+            </span>
+            <Link
+              href="/portal/rules"
+              className="text-[10px] uppercase font-bold text-primary hover:underline flex items-center gap-1.5"
+            >
+              Gérer les règles <ChevronRight className="w-3 h-3" />
+            </Link>
           </div>
         </div>
 
@@ -230,18 +239,56 @@ export default function DashboardPage() {
             </div>
 
             <div className="pt-8 relative z-10">
-              <button className="w-full bg-white text-primary py-3 rounded-xl font-bold text-sm shadow-lg hover:shadow-xl transition-all active:scale-95">
+              <Link
+                href="/portal/events"
+                className="block w-full text-center bg-white text-primary py-3 rounded-xl font-bold text-sm shadow-lg hover:shadow-xl transition-all active:scale-95"
+              >
                 Lancer un test Event
-              </button>
+              </Link>
             </div>
           </div>
 
-          <div className="border border-border bg-card rounded-2xl p-6 shadow-sm flex items-center gap-4">
-            <div className="w-3 h-3 rounded-full bg-emerald-500 animate-pulse ring-4 ring-emerald-500/20" />
+          <Link
+            href="/portal/bonification"
+            className="border border-border bg-card rounded-2xl p-6 shadow-sm flex items-center gap-4 hover:border-primary/50 transition-colors"
+          >
+            {bonificationLoading ? (
+              <div className="w-3 h-3 rounded-full bg-muted animate-pulse" />
+            ) : (
+              <div
+                className={`w-3 h-3 rounded-full ring-4 ${bonification?.connected
+                    ? "bg-emerald-500 animate-pulse ring-emerald-500/20"
+                    : "bg-rose-500 ring-rose-500/20"
+                  }`}
+              />
+            )}
             <div>
-              <p className="text-xs font-bold text-foreground">Worker Kafka</p>
-              <p className="text-[10px] text-muted-foreground">En attente d&apos;événements de bonification.</p>
+              <p className="text-xs font-bold text-foreground">Bonification</p>
+              <p className="text-[10px] text-muted-foreground">
+                {bonificationLoading
+                  ? "Vérification..."
+                  : bonification?.connected
+                    ? bonification.message || "Partenaire connecté."
+                    : bonification?.message || "Partenaire non connecté."}
+              </p>
             </div>
+          </Link>
+
+          <div className="grid grid-cols-2 gap-4">
+            <Link
+              href="/portal/api-keys"
+              className="border border-border bg-card rounded-2xl p-4 shadow-sm flex flex-col items-center gap-2 text-center hover:border-primary/50 transition-colors"
+            >
+              <Key className="w-5 h-5 text-primary" />
+              <span className="text-xs font-bold text-foreground">Clés API</span>
+            </Link>
+            <Link
+              href="/portal/webhooks"
+              className="border border-border bg-card rounded-2xl p-4 shadow-sm flex flex-col items-center gap-2 text-center hover:border-primary/50 transition-colors"
+            >
+              <Webhook className="w-5 h-5 text-primary" />
+              <span className="text-xs font-bold text-foreground">Webhooks</span>
+            </Link>
           </div>
         </div>
       </div>

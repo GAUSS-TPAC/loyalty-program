@@ -3,6 +3,7 @@ package com.yowyob.loyalty.api.loyalty;
 import com.yowyob.loyalty.api.loyalty.dto.request.CreateRuleRequest;
 import com.yowyob.loyalty.api.loyalty.dto.response.RuleResponse;
 import com.yowyob.loyalty.application.loyalty.handler.ActivateRuleHandler;
+import com.yowyob.loyalty.application.loyalty.handler.ArchiveRuleHandler;
 import com.yowyob.loyalty.application.loyalty.handler.CreateRuleHandler;
 import com.yowyob.loyalty.domain.loyalty.port.out.RuleRepository;
 import com.yowyob.loyalty.shared.multitenancy.TenantContextHolder;
@@ -23,15 +24,18 @@ public class RuleController {
 
     private final CreateRuleHandler createRuleHandler;
     private final ActivateRuleHandler activateRuleHandler;
+    private final ArchiveRuleHandler archiveRuleHandler;
     private final RuleRepository ruleRepository;
 
     public RuleController(
             CreateRuleHandler createRuleHandler,
             ActivateRuleHandler activateRuleHandler,
+            ArchiveRuleHandler archiveRuleHandler,
             RuleRepository ruleRepository
     ) {
         this.createRuleHandler = createRuleHandler;
         this.activateRuleHandler = activateRuleHandler;
+        this.archiveRuleHandler = archiveRuleHandler;
         this.ruleRepository = ruleRepository;
     }
 
@@ -72,5 +76,10 @@ public class RuleController {
     @PatchMapping("/{ruleId}/activate")
     public Mono<RuleResponse> activateRule(@PathVariable UUID ruleId) {
         return activateRuleHandler.activate(ruleId).map(RuleResponse::from);
+    }
+
+    @PatchMapping("/{ruleId}/archive")
+    public Mono<RuleResponse> archiveRule(@PathVariable UUID ruleId) {
+        return archiveRuleHandler.archive(ruleId).map(RuleResponse::from);
     }
 }

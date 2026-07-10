@@ -137,6 +137,11 @@ app:
     connect-timeout-ms: ${BONIFICATION_CONNECT_TIMEOUT_MS:5000}
     read-timeout-ms: ${BONIFICATION_READ_TIMEOUT_MS:15000}
 
+  # Secret statique pour la console plateforme (/api/v1/admin/platform/**), qui
+  # n'est rattachée à aucun tenant — distinct des credentials tenant (JWT / clé API).
+  platform-admin:
+    secret: ${PLATFORM_ADMIN_KEY:}
+
   security:
     jwt:
       # Noms des claims YowAuth0 / Keycloak

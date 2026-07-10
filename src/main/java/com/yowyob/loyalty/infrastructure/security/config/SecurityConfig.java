@@ -37,7 +37,10 @@ public class SecurityConfig {
                                 "/api-docs/**",
                                 "/v3/api-docs/**",
                                 "/webjars/**",
-                                "/api/v1/auth/login"
+                                "/api/v1/auth/login",
+                                // Non rattaché à un tenant : protégé par PlatformAdminAuthFilter
+                                // (secret statique X-Platform-Admin-Key), pas par JWT/clé API.
+                                "/api/v1/admin/platform/**"
                         ).permitAll()
                         .anyExchange().authenticated()
                 )

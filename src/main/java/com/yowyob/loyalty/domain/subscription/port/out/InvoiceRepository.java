@@ -11,4 +11,5 @@ public interface InvoiceRepository {
     Mono<InvoiceRecord> save(InvoiceRecord invoice);
     Flux<InvoiceRecord> findByTenantId(TenantId tenantId);
     Flux<InvoiceRecord> findOverduePending(Instant now);
+    Flux<InvoiceRecord> findAll();
 }

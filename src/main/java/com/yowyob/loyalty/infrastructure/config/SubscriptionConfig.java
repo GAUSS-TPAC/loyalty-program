@@ -5,11 +5,13 @@ import com.yowyob.loyalty.domain.shared.model.TenantId;
 import com.yowyob.loyalty.domain.subscription.model.BillingCycle;
 import com.yowyob.loyalty.domain.subscription.model.InvoiceRecord;
 import com.yowyob.loyalty.domain.subscription.model.PlanFeatures;
+import com.yowyob.loyalty.domain.subscription.model.PlatformTenantSummary;
 import com.yowyob.loyalty.domain.subscription.model.SubscriptionPlan;
 import com.yowyob.loyalty.domain.subscription.model.TenantSubscription;
 import com.yowyob.loyalty.domain.subscription.port.in.*;
 import com.yowyob.loyalty.domain.subscription.port.out.*;
 import com.yowyob.loyalty.domain.subscription.service.SubscriptionDomainService;
+import com.yowyob.loyalty.domain.tenant.port.out.TenantDirectoryPort;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
@@ -28,8 +30,9 @@ public class SubscriptionConfig {
     public SubscriptionDomainService subscriptionDomainService(
             SubscriptionPlanRepository planRepository,
             TenantSubscriptionRepository subscriptionRepository,
-            InvoiceRepository invoiceRepository) {
-        return new SubscriptionDomainService(planRepository, subscriptionRepository, invoiceRepository);
+            InvoiceRepository invoiceRepository,
+            TenantDirectoryPort tenantDirectoryPort) {
+        return new SubscriptionDomainService(planRepository, subscriptionRepository, invoiceRepository, tenantDirectoryPort);
     }
 
     // SubscriptionDomainService implements all 5 use-case interfaces below directly, so
@@ -146,6 +149,17 @@ public class SubscriptionConfig {
             @Override
             public Mono<Integer> processOverdueInvoices() {
                 return service.processOverdueInvoices();
+            }
+        };
+    }
+
+    @Bean
+    @Primary
+    public ListPlatformTenantsUseCase listPlatformTenantsUseCase(SubscriptionDomainService service) {
+        return new ListPlatformTenantsUseCase() {
+            @Override
+            public Flux<PlatformTenantSummary> listSubscribedTenants() {
+                return service.listSubscribedTenants();
             }
         };
     }
