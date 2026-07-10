@@ -21,6 +21,8 @@ import {
     adminMembersApi,
     tierPolicyApi,
     adminLogsApi,
+    platformApi,
+    type PlatformTenantResponse,
     type WalletResponse,
     type PointsAccountResponse,
     type MemberTierResponse,
@@ -239,4 +241,11 @@ export function useAdminLogs(
     size = 20
 ): UseQueryResult<PointsTransactionLogResponse[]> {
     return useQuery(() => adminLogsApi.listPointsTransactions(page, size), [page, size]);
+}
+
+// ─── Hooks Console Plateforme ─────────────────────────────────────────────────
+
+/** Retourne les organisations abonnées au service loyalty (console plateforme) */
+export function usePlatformTenants(): UseQueryResult<PlatformTenantResponse[]> {
+    return useQuery(() => platformApi.listTenants());
 }

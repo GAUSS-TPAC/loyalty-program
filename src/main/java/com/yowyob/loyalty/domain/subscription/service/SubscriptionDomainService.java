@@ -5,6 +5,7 @@ import com.yowyob.loyalty.domain.subscription.exception.*;
 import com.yowyob.loyalty.domain.subscription.model.*;
 import com.yowyob.loyalty.domain.subscription.port.in.*;
 import com.yowyob.loyalty.domain.subscription.port.out.*;
+import com.yowyob.loyalty.domain.tenant.port.out.TenantDirectoryPort;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -15,18 +16,21 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 public class SubscriptionDomainService implements
         GetPlanUseCase, ManagePlanUseCase, SubscribeUseCase,
-        GetSubscriptionUseCase, ProcessSubscriptionRenewalUseCase {
+        GetSubscriptionUseCase, ProcessSubscriptionRenewalUseCase, ListPlatformTenantsUseCase {
 
     private final SubscriptionPlanRepository planRepository;
     private final TenantSubscriptionRepository subscriptionRepository;
     private final InvoiceRepository invoiceRepository;
+    private final TenantDirectoryPort tenantDirectoryPort;
 
     public SubscriptionDomainService(SubscriptionPlanRepository planRepository,
                                       TenantSubscriptionRepository subscriptionRepository,
-                                      InvoiceRepository invoiceRepository) {
+                                      InvoiceRepository invoiceRepository,
+                                      TenantDirectoryPort tenantDirectoryPort) {
         this.planRepository = planRepository;
         this.subscriptionRepository = subscriptionRepository;
         this.invoiceRepository = invoiceRepository;
+        this.tenantDirectoryPort = tenantDirectoryPort;
     }
 
     // ── Plans ─────────────────────────────────────────────────────────────────
@@ -196,6 +200,28 @@ public class SubscriptionDomainService implements
                 })
                 .doOnNext(i -> count.incrementAndGet())
                 .then(Mono.fromSupplier(count::get));
+    }
+
+    // ── Console plateforme ───────────────────────────────────────────────────────
+
+    @Override
+    public Flux<PlatformTenantSummary> listSubscribedTenants() {
+        return subscriptionRepository.findAll()
+                .flatMap(sub -> Mono.zip(
+                        planRepository.findById(sub.planId())
+                                .map(plan -> new String[]{plan.code(), plan.name(), plan.currency()})
+                                .defaultIfEmpty(new String[]{"—", "Plan supprimé", "—"}),
+                        invoiceRepository.findByTenantId(sub.tenantId())
+                                .filter(inv -> inv.status() == InvoiceStatus.PAID)
+                                .map(InvoiceRecord::amount)
+                                .reduce(BigDecimal.ZERO, BigDecimal::add),
+                        tenantDirectoryPort.resolveTenant(sub.tenantId())
+                                .map(com.yowyob.loyalty.domain.tenant.model.Tenant::getName)
+                                .onErrorReturn("Tenant " + sub.tenantId().value())
+                                .defaultIfEmpty("Tenant " + sub.tenantId().value())
+                ).map(t -> new PlatformTenantSummary(
+                        sub.tenantId(), t.getT3(), sub, t.getT1()[0], t.getT1()[1], t.getT2(), t.getT1()[2]
+                )));
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
