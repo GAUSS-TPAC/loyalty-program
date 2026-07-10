@@ -24,8 +24,8 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    @Operation(summary = "Connexion admin", description = "Authentifie un administrateur par email/mot de passe via KernelCore et retourne un JWT.")
+    @Operation(summary = "Connexion admin", description = "Authentifie un administrateur par email/mot de passe via KernelCore et retourne un JWT ainsi que l'organisation active (à renvoyer via X-Organization-Id).")
     public Mono<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
-        return authService.login(request.email(), request.password()).map(LoginResponse::new);
+        return authService.login(request.email(), request.password(), request.organizationId()).map(LoginResponse::new);
     }
 }

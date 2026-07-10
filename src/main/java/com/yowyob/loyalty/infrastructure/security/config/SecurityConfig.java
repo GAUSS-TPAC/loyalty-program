@@ -17,9 +17,13 @@ import org.springframework.security.web.server.SecurityWebFilterChain;
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final com.yowyob.loyalty.infrastructure.security.SecurityContextRepository securityContextRepository;
 
-    public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter) {
+    public SecurityConfig(
+            JwtAuthenticationFilter jwtAuthenticationFilter,
+            com.yowyob.loyalty.infrastructure.security.SecurityContextRepository securityContextRepository) {
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
+        this.securityContextRepository = securityContextRepository;
     }
 
     @Bean
@@ -28,6 +32,14 @@ public class SecurityConfig {
                 .csrf(ServerHttpSecurity.CsrfSpec::disable)
                 .httpBasic(ServerHttpSecurity.HttpBasicSpec::disable)
                 .formLogin(ServerHttpSecurity.FormLoginSpec::disable)
+                // Sans ceci, notre SecurityContextRepository (qui valide le Bearer JWT et en
+                // extrait les autorités ROLE_*) n'est jamais invoqué pour peupler le contexte
+                // réactif : JwtAuthenticationFilter (AuthenticationWebFilter) n'aide pas non plus
+                // ici, son ServerAuthenticationConverter par défaut ne reconnaît que Basic Auth,
+                // pas Bearer. Résultat vérifié en conditions réelles : toute requête authentifiée
+                // par un vrai JWT KernelCore était traitée comme anonyme -> 401 systématique sur
+                // anyExchange().authenticated(), y compris pour un admin légitime.
+                .securityContextRepository(securityContextRepository)
                 .authorizeExchange(exchanges -> exchanges
                         .pathMatchers(
                                 "/public/**",

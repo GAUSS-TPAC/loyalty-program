@@ -26,7 +26,7 @@ export default function DocsPage() {
         <pre className={CODE_BLOCK}>{`curl -X POST /api/v1/events \\
   -H "X-Api-Key: lk_live_..." \\
   -H "Content-Type: application/json" \\
-  -d '{"eventType":"purchase.completed","memberId":"usr_123","amount":49.90}'`}</pre>
+  -d '{"eventType":"purchase.completed","memberId":"usr_123","occurredAt":"2026-07-08T10:00:00Z","payload":{"amount":49.90}}'`}</pre>
       </section>
 
       <section className="bg-card border border-border rounded-xl p-6 space-y-3">

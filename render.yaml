@@ -25,7 +25,11 @@ services:
     healthCheckPath: /actuator/health
     envVars:
       - key: SPRING_PROFILES_ACTIVE
-        value: no-kafka
+        # "stub" is required in addition to "no-kafka": PaymentRequestRepository and
+        # WalletAuditLogRepository have no real R2DBC adapter yet, only in-memory stubs
+        # gated to {test, stub, dev} — without it the app fails to boot at all
+        # (UnsatisfiedDependencyException on InitiateWithdrawalHandler).
+        value: no-kafka,stub
       - key: SERVER_PORT
         value: "8081"
 
@@ -63,6 +67,8 @@ services:
       - key: KERNEL_SERVICE_CLIENT_ID
         sync: false
       - key: KERNEL_SERVICE_CLIENT_SECRET
+        sync: false
+      - key: KERNEL_TENANT_ID
         sync: false
       - key: JWT_ISSUER_URI
         value: kernel-core

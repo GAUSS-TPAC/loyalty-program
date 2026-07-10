@@ -23,6 +23,7 @@ public class TenantResolutionFilter implements WebFilter {
     private static final String[] PUBLIC_PATHS = {
             "/public/", "/actuator", "/swagger-ui", "/v3/api-docs", "/api-docs", "/webjars/"
     };
+    private static final String ORGANIZATION_HEADER = "X-Organization-Id";
 
     private final TenantCacheAdapter tenantCacheAdapter;
     private final KernelCoreTenantAdapter kernelCoreTenantAdapter;
@@ -50,19 +51,35 @@ public class TenantResolutionFilter implements WebFilter {
             return chain.filter(exchange);
         }
 
+        String rawToken = authHeader.substring(7);
         TenantId tenantId;
         try {
-            tenantId = jwtClaimsExtractor.extractTenantIdFromRawToken(authHeader.substring(7));
+            tenantId = resolveTenantIdFromRequest(exchange, rawToken);
         } catch (Exception e) {
             return writeUnauthorized(exchange);
         }
 
-        return resolveTenant(tenantId, exchange, chain);
+        return resolveTenant(tenantId, rawToken, exchange, chain);
     }
 
-    private Mono<Void> resolveTenant(TenantId tenantId, ServerWebExchange exchange, WebFilterChain chain) {
+    /**
+     * L'organisation KernelCore cible (= "tenant" au sens de ce backend) est prioritairement
+     * portée par le header X-Organization-Id, tel qu'exigé par le contrat KernelCore pour les
+     * services métier scopés organisation — un login tenant-scopé "nu" ne porte pas de claim
+     * d'organisation dans le JWT. Le claim JWT reste un repli pour un futur token issu du flux
+     * discover/select-context (qui porterait alors un claim "oid").
+     */
+    private TenantId resolveTenantIdFromRequest(ServerWebExchange exchange, String rawToken) throws Exception {
+        String orgHeader = exchange.getRequest().getHeaders().getFirst(ORGANIZATION_HEADER);
+        if (orgHeader != null && !orgHeader.isBlank()) {
+            return TenantId.of(java.util.UUID.fromString(orgHeader.trim()));
+        }
+        return jwtClaimsExtractor.extractTenantIdFromRawToken(rawToken);
+    }
+
+    private Mono<Void> resolveTenant(TenantId tenantId, String rawToken, ServerWebExchange exchange, WebFilterChain chain) {
         return tenantCacheAdapter.findById(tenantId)
-                .switchIfEmpty(Mono.defer(() -> kernelCoreTenantAdapter.fetchAndCache(tenantId)))
+                .switchIfEmpty(Mono.defer(() -> kernelCoreTenantAdapter.fetchAndCache(tenantId, rawToken)))
                 .flatMap(tenant -> {
                     if (!tenant.isActive()) return writeUnauthorized(exchange);
                     TenantContext ctx = TenantContext.from(tenant);

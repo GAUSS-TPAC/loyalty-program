@@ -1,6 +1,7 @@
 package com.yowyob.loyalty.infrastructure.kernelcore.dto;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.util.UUID;
 
@@ -41,6 +42,15 @@ public class KernelOrganizationDto {
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
 
+    /**
+     * @JsonProperty("isActive") requis : Jackson infère par défaut le nom de propriété
+     * "active" depuis un getter isActive()/setter setActive(boolean) (convention "is"-stripping),
+     * alors que Kernel Core envoie littéralement la clé JSON "isActive" — sans cette annotation
+     * le champ reste silencieusement à sa valeur par défaut (false) pour CHAQUE organisation,
+     * qu'elle soit approuvée ou non (vérifié en conditions réelles : mapStatus() traitait alors
+     * systématiquement le tenant comme SUSPENDED).
+     */
+    @JsonProperty("isActive")
     public boolean isActive() { return isActive; }
     public void setActive(boolean active) { isActive = active; }
 

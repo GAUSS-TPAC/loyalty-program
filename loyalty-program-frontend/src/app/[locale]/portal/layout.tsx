@@ -1,11 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter, Link } from "@/i18n/routing";
 import { usePathname } from "next/navigation";
-import { Terminal, Settings, LogOut, Code2, Cpu, Wallet, Users, LayoutDashboard, Menu, X, Zap, Gift, Tag, Megaphone, CreditCard } from "lucide-react";
+import { Terminal, Settings, LogOut, Code2, Cpu, Wallet, Users, LayoutDashboard, Menu, X, Zap, Gift, Tag, Megaphone, CreditCard, WifiOff } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { toast } from "sonner";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { useOnlineStatus } from "@/hooks/useOnlineStatus";
+import { flushQueue } from "@/lib/offlineQueue";
 
 export default function PortalLayout({ children }: { children: React.ReactNode }) {
   const [authToken, setAuthToken] = useState<string | null>(null);
@@ -15,6 +18,29 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
   const tNav = useTranslations("Navigation");
   const tSide = useTranslations("Sidebar");
   const tHeader = useTranslations("Header");
+  const isOnline = useOnlineStatus();
+  const wasOnline = useRef(isOnline);
+
+  useEffect(() => {
+    const trySync = async () => {
+      const { synced } = await flushQueue();
+      if (synced > 0) {
+        toast.success(`${synced} événement(s) synchronisé(s) avec succès`);
+      }
+    };
+
+    if (isOnline && !wasOnline.current) {
+      toast.success("Connexion rétablie");
+      trySync();
+    } else if (!isOnline && wasOnline.current) {
+      toast.warning("Vous êtes hors ligne — les données affichées peuvent être obsolètes");
+    } else if (isOnline) {
+      // Tab reopened while already back online: flush anything left queued.
+      trySync();
+    }
+    wasOnline.current = isOnline;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOnline]);
 
   useEffect(() => {
     let token = sessionStorage.getItem("loyalty_jwt_token");
@@ -40,6 +66,7 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
 
   const handleLogout = () => {
     sessionStorage.removeItem("loyalty_jwt_token");
+    sessionStorage.removeItem("loyalty_organization_id");
     router.push("/");
   };
 
@@ -142,7 +169,13 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
               {tHeader("dashboard")}
             </h2>
           </div>
-          <div>
+          <div className="flex items-center gap-3">
+            {!isOnline && (
+              <span className="flex items-center gap-1.5 text-xs font-medium text-amber-700 bg-amber-100 border border-amber-200 px-2.5 py-1 rounded-full">
+                <WifiOff className="w-3.5 h-3.5" />
+                Hors ligne
+              </span>
+            )}
             <LanguageSwitcher />
           </div>
         </header>

@@ -95,4 +95,48 @@ public class TenantResolutionFilterTest {
 
         assertEquals(HttpStatus.UNAUTHORIZED, exchange.getResponse().getStatusCode());
     }
+
+    /**
+     * KernelCore auth-core ne met pas l'ID d'organisation dans le JWT d'un login tenant-scopé
+     * "nu" : le client doit propager X-Organization-Id, et ce header doit primer sur tout claim
+     * JWT (qui n'est utilisé qu'en repli — voir TenantResolutionFilter.resolveTenantIdFromRequest).
+     */
+    @Test
+    public void testOrganizationHeaderTakesPrecedenceOverJwtClaim() {
+        TenantId headerTenantId = TenantId.of(UUID.randomUUID());
+        Tenant tenant = Tenant.create(headerTenantId, "Test", "test", TenantPlan.PRO, TenantConfig.defaults(), "admin").activate();
+
+        when(tenantCacheAdapter.findById(headerTenantId)).thenReturn(Mono.just(tenant));
+
+        MockServerHttpRequest request = MockServerHttpRequest.get("/api/secure")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer some-token")
+                .header("X-Organization-Id", headerTenantId.value().toString())
+                .build();
+        MockServerWebExchange exchange = MockServerWebExchange.from(request);
+
+        WebFilterChain chain = filterExchange -> TenantContextHolder.getTenantContext()
+                .doOnNext(ctx -> assertEquals(headerTenantId, ctx.tenantId()))
+                .then();
+
+        StepVerifier.create(filter.filter(exchange, chain))
+                .verifyComplete();
+
+        // The header resolved tenant without ever touching the JWT claim extractor.
+        Mockito.verifyNoInteractions(jwtClaimsExtractor);
+    }
+
+    @Test
+    public void testMalformedOrganizationHeaderReturnsUnauthorized() {
+        MockServerHttpRequest request = MockServerHttpRequest.get("/api/secure")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer some-token")
+                .header("X-Organization-Id", "not-a-uuid")
+                .build();
+        MockServerWebExchange exchange = MockServerWebExchange.from(request);
+        WebFilterChain chain = filterExchange -> Mono.error(new IllegalStateException("Should not reach here"));
+
+        StepVerifier.create(filter.filter(exchange, chain))
+                .verifyComplete();
+
+        assertEquals(HttpStatus.UNAUTHORIZED, exchange.getResponse().getStatusCode());
+    }
 }

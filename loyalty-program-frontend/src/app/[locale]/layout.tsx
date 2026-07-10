@@ -31,6 +31,7 @@ export async function generateMetadata({
 }
 
 import { Toaster } from "@/components/ui/sonner";
+import { ServiceWorkerRegistration } from "@/components/ServiceWorkerRegistration";
 
 export default async function RootLayout({
   children,
@@ -59,6 +60,7 @@ export default async function RootLayout({
         <NextIntlClientProvider messages={messages}>
           {children}
           <Toaster position="top-right" richColors />
+          <ServiceWorkerRegistration />
         </NextIntlClientProvider>
       </body>
     </html>

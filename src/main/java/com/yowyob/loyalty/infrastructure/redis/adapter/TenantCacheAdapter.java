@@ -13,16 +13,15 @@ import java.time.Duration;
 @Component
 public class TenantCacheAdapter {
 
-    private final ReactiveRedisTemplate<String, Object> redisTemplate;
+    private final ReactiveRedisTemplate<String, Tenant> redisTemplate;
 
-    public TenantCacheAdapter(@Qualifier("objectRedisTemplate") ReactiveRedisTemplate<String, Object> redisTemplate) {
+    public TenantCacheAdapter(@Qualifier("tenantRedisTemplate") ReactiveRedisTemplate<String, Tenant> redisTemplate) {
         this.redisTemplate = redisTemplate;
     }
 
     public Mono<Tenant> findById(TenantId id) {
         String key = RedisKeyBuilder.tenantCacheKey(id);
-        return redisTemplate.opsForValue().get(key)
-                .cast(Tenant.class);
+        return redisTemplate.opsForValue().get(key);
     }
 
     public Mono<Void> cache(Tenant tenant) {

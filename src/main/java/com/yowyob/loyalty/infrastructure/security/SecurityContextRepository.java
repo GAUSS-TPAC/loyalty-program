@@ -16,15 +16,24 @@ import reactor.core.publisher.Mono;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Locale;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
  * Résout le SecurityContext à partir du Bearer JWT.
- * Convertit le claim de rôles (configurable via app.security.jwt.roles-claim, ex: "roles" ou "tid"
- * selon l'émetteur — Keycloak/YowAuth0 ou KernelCore auth-core) en autorités Spring
- * ("ROLE_xxx") afin que les vérifications @PreAuthorize("hasRole(...)") fonctionnent réellement.
- * Sans cette conversion, JwtAuthenticationToken n'accorde par défaut que des autorités
- * SCOPE_* dérivées du claim "scope", ce qui fait échouer silencieusement tout hasRole(...).
+ * Convertit le claim de rôles/permissions (configurable via app.security.jwt.roles-claim) en
+ * autorités Spring ("ROLE_xxx") afin que les vérifications @PreAuthorize("hasRole(...)")
+ * fonctionnent réellement. Sans cette conversion, JwtAuthenticationToken n'accorde par défaut
+ * que des autorités SCOPE_* dérivées du claim "scope", ce qui fait échouer silencieusement tout
+ * hasRole(...).
+ *
+ * KernelCore auth-core n'émet pas de rôles Keycloak-style : le claim "permissions" porte une
+ * liste de codes scopés (ex: "tenant:admin", "tenant:admin#TENANT", "ROLE_OWNER#TENANT",
+ * "settings:write"). On normalise chaque code (suffixe #SCOPE retiré, non-alphanumériques ->
+ * "_", majuscules) en une autorité ROLE_<CODE>, et on reconnaît en plus les codes équivalents à
+ * un accès admin de tenant pour accorder ROLE_TENANT_ADMIN (requis par ApiKeyController,
+ * AdminLogsController, etc.).
  */
 @Component
 public class SecurityContextRepository implements ServerSecurityContextRepository {
@@ -57,6 +66,11 @@ public class SecurityContextRepository implements ServerSecurityContextRepositor
         }
     }
 
+    /** Codes de permission KernelCore (scope #TENANT/#ORGANIZATION retiré) équivalents à un accès admin de tenant. */
+    private static final Set<String> TENANT_ADMIN_PERMISSION_CODES = Set.of(
+            "tenant:admin", "role_owner", "owner", "tenant_admin"
+    );
+
     @SuppressWarnings("unchecked")
     private Collection<GrantedAuthority> extractAuthorities(Jwt jwt) {
         Object claim = jwt.getClaim(jwtProperties.getRolesClaim());
@@ -68,8 +82,23 @@ public class SecurityContextRepository implements ServerSecurityContextRepositor
         } else {
             roles = List.of();
         }
-        return roles.stream()
-                .map(role -> new SimpleGrantedAuthority("ROLE_" + role.toUpperCase()))
-                .collect(Collectors.toList());
+
+        boolean isTenantAdmin = false;
+        Set<GrantedAuthority> authorities = new java.util.LinkedHashSet<>();
+        for (String role : roles) {
+            String withoutScope = role.contains("#") ? role.substring(0, role.indexOf('#')) : role;
+            String normalizedKey = withoutScope.toLowerCase(Locale.ROOT);
+            if (TENANT_ADMIN_PERMISSION_CODES.contains(normalizedKey)) {
+                isTenantAdmin = true;
+            }
+            String authorityName = withoutScope.replaceAll("[^A-Za-z0-9]+", "_").toUpperCase(Locale.ROOT);
+            if (!authorityName.isBlank()) {
+                authorities.add(new SimpleGrantedAuthority("ROLE_" + authorityName));
+            }
+        }
+        if (isTenantAdmin) {
+            authorities.add(new SimpleGrantedAuthority("ROLE_TENANT_ADMIN"));
+        }
+        return authorities;
     }
 }

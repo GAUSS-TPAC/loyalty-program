@@ -6,6 +6,7 @@ import com.yowyob.loyalty.domain.shared.model.TenantId;
 import com.yowyob.loyalty.domain.tenant.model.enums.TenantPlan;
 import com.yowyob.loyalty.domain.tenant.model.enums.TenantStatus;
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 public class Tenant {
@@ -77,10 +78,18 @@ public class Tenant {
         );
     }
 
+    /**
+     * @JsonIgnore : sans ça, Jackson détecte ces prédicats comme des propriétés bean ("active",
+     * "suspended") et les sérialise en plus des 7 champs du constructeur @JsonCreator — la
+     * relecture depuis Redis échoue alors avec UnrecognizedPropertyException (vérifié en
+     * conditions réelles, voir TenantCacheAdapter).
+     */
+    @JsonIgnore
     public boolean isActive() {
         return this.status == TenantStatus.ACTIVE;
     }
 
+    @JsonIgnore
     public boolean isSuspended() {
         return this.status == TenantStatus.SUSPENDED;
     }

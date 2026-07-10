@@ -35,6 +35,12 @@ public class DevJwtSecurityConfig {
                                 ? claims.getExpirationTime().toInstant()
                                 : Instant.now().plusSeconds(3600));
                 for (Map.Entry<String, Object> entry : claims.getClaims().entrySet()) {
+                    // See TestJwtSecurityConfig: "iat"/"exp"/"nbf" come back as java.util.Date from
+                    // claims.getClaims(), but Jwt.Builder requires Instant for these — re-copying
+                    // them here overwrites the correct Instant values above and crashes .build().
+                    if (entry.getKey().equals("iat") || entry.getKey().equals("exp") || entry.getKey().equals("nbf")) {
+                        continue;
+                    }
                     builder.claim(entry.getKey(), entry.getValue());
                 }
                 return Mono.just(builder.build());

@@ -22,8 +22,9 @@ export default function AdminLoginPage() {
     setIsLoading(true);
     setError(null);
     try {
-      const { token } = await authApi.login({ email: email.trim(), password });
+      const { token, organizationId } = await authApi.login({ email: email.trim(), password });
       sessionStorage.setItem("loyalty_jwt_token", token);
+      sessionStorage.setItem("loyalty_organization_id", organizationId);
       router.push("/portal");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Login failed");

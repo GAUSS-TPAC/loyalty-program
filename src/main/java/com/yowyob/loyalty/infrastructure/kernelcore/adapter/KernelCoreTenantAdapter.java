@@ -46,9 +46,21 @@ public class KernelCoreTenantAdapter {
     }
 
     public Mono<Tenant> fetchAndCache(TenantId tenantId) {
+        return fetchAndCache(tenantId, null);
+    }
+
+    /**
+     * @param userBearerToken JWT de l'admin courant, utilisé à défaut de token de service
+     *                        configuré (KERNEL_TOKEN_ENDPOINT, souvent inactif). GET
+     *                        /api/organizations/{id} exige côté Kernel Core soit un token
+     *                        client_credentials, soit un Bearer utilisateur valide — sans l'un
+     *                        des deux, Kernel Core répond 500 "Access Denied" (vérifié en
+     *                        conditions réelles).
+     */
+    public Mono<Tenant> fetchAndCache(TenantId tenantId, String userBearerToken) {
         return tokenService.getServiceToken()
                 .flatMap(token -> fetchOrganization(tenantId, token))
-                .switchIfEmpty(Mono.defer(() -> fetchOrganization(tenantId, null)))
+                .switchIfEmpty(Mono.defer(() -> fetchOrganization(tenantId, userBearerToken)))
                 .map(org -> toTenant(tenantId, org))
                 .flatMap(tenant -> tenantCache.cache(tenant).thenReturn(tenant))
                 .doOnSuccess(t -> log.debug("Tenant résolu depuis Kernel Core: {}", tenantId))

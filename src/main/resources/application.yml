@@ -70,14 +70,6 @@ spring:
       loyalty-events: loyalty.events
       loyalty-reward-grants: loyalty.rewards.grant-requests
 
-  # ── Sécurité OAuth2 Resource Server (JWT) ───────────────────
-  security:
-    oauth2:
-      resourceserver:
-        jwt:
-          issuer-uri: ${JWT_ISSUER_URI:http://localhost:8080/realms/loyalty}
-          jwk-set-uri: ${JWT_JWK_SET_URI:http://localhost:8080/realms/loyalty/protocol/openid-connect/certs}
-
 # ── Serveur WebFlux ──────────────────────────────────────────
 server:
   port: ${SERVER_PORT:8081}
@@ -125,6 +117,8 @@ app:
     service-client-id: ${KERNEL_SERVICE_CLIENT_ID:loyalty-service}
     service-client-secret: ${KERNEL_SERVICE_CLIENT_SECRET:changeme}
     token-endpoint: ${KERNEL_TOKEN_ENDPOINT:}
+    # Tenant plateforme KernelCore (X-Tenant-Id) sous lequel /api/v1/auth/login se connecte.
+    tenant-id: ${KERNEL_TENANT_ID:}
     connect-timeout-ms: 3000
     read-timeout-ms: 5000
 
@@ -139,10 +133,18 @@ app:
 
   security:
     jwt:
-      # Noms des claims YowAuth0 / Keycloak
-      tenant-id-claim: organization_id
-      org-name-claim: org_name
-      org-status-claim: org_status
-      org-plan-claim: org_plan
-      roles-claim: realm_access.roles
-      organization-id-claim: organization_id
+      # C'est ici, sous app.security.jwt.*, que JwtProperties/JwtTokenValidator lisent
+      # réellement la config JWT — pas sous spring.security.oauth2.resourceserver.jwt.* (qui
+      # n'est consommé par aucun code de ce backend : ce dernier construit son propre
+      # NimbusReactiveJwtDecoder à la main). Avec ces clés au mauvais endroit, jwk-set-uri restait
+      # toujours vide et retombait sur "http://localhost/dummy" (voir JwtTokenValidator),
+      # provoquant un rejet JWT systématique — vérifié en conditions réelles.
+      issuer-uri: ${JWT_ISSUER_URI:kernel-core}
+      jwk-set-uri: ${JWT_JWK_SET_URI:https://kernel-core.yowyob.com/.well-known/jwks.json}
+      # Claims réels du JWT KernelCore auth-core (sub, tid, oid, aid, actor, permissions, adm).
+      # tenant-id-claim n'est utilisé qu'en repli quand le client n'envoie pas X-Organization-Id
+      # (voir TenantResolutionFilter) — un login tenant-scopé "nu" ne porte pas de claim "oid".
+      tenant-id-claim: oid
+      # Liste de codes de permission scopés (ex: "tenant:admin#TENANT", "ROLE_OWNER"), pas des
+      # rôles Keycloak — voir SecurityContextRepository pour le mapping vers les autorités Spring.
+      roles-claim: permissions

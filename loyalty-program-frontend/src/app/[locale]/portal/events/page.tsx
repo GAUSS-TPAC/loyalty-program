@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
     Zap,
     Send,
@@ -10,8 +10,10 @@ import {
     Info,
     Clock,
     ChevronRight,
+    WifiOff,
 } from "lucide-react";
 import { eventsApi, type EventProcessingResponse } from "@/lib/api";
+import { enqueue, flushQueue, getQueue, type QueuedEvent } from "@/lib/offlineQueue";
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
 
@@ -106,6 +108,8 @@ export default function EventsPage() {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [result, setResult] = useState<EventProcessingResponse | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const [justQueued, setJustQueued] = useState(false);
+    const [queuedEvents, setQueuedEvents] = useState<QueuedEvent[]>([]);
     const [history, setHistory] = useState<
         Array<{
             ts: string;
@@ -114,6 +118,17 @@ export default function EventsPage() {
             result: EventProcessingResponse;
         }>
     >([]);
+
+    const refreshQueue = () => setQueuedEvents(getQueue());
+
+    useEffect(() => {
+        refreshQueue();
+        const handleOnline = () => {
+            flushQueue().then(refreshQueue);
+        };
+        window.addEventListener("online", handleOnline);
+        return () => window.removeEventListener("online", handleOnline);
+    }, []);
 
     const generateKey = () => {
         setIdempotencyKey(
@@ -127,24 +142,42 @@ export default function EventsPage() {
         setIsSubmitting(true);
         setResult(null);
         setError(null);
+        setJustQueued(false);
+
+        const payload = {
+            eventType,
+            memberId,
+            occurredAt: new Date().toISOString(),
+            payload: amount ? { amount: Number(amount) } : undefined,
+        };
+        const key = useIdempotency && idempotencyKey ? idempotencyKey : undefined;
+
+        // Offline: don't even attempt the fetch, queue straight away.
+        if (!navigator.onLine) {
+            enqueue(payload, key);
+            refreshQueue();
+            setJustQueued(true);
+            setIsSubmitting(false);
+            return;
+        }
 
         try {
-            const res = await eventsApi.processEvent(
-                {
-                    eventType,
-                    memberId,
-                    amount: amount ? Number(amount) : undefined,
-                    metadata: {},
-                },
-                useIdempotency && idempotencyKey ? idempotencyKey : undefined
-            );
+            const res = await eventsApi.processEvent(payload, key);
             setResult(res);
             setHistory((prev) => [
                 { ts: new Date().toISOString(), eventType, memberId, result: res },
                 ...prev.slice(0, 9),
             ]);
         } catch (err) {
-            setError(err instanceof Error ? err.message : "Erreur inconnue");
+            // A dropped connection surfaces as a raw TypeError ("Failed to fetch"),
+            // unlike a real HTTP error which requestWithHeaders wraps as Error("[status] ...").
+            if (!navigator.onLine || err instanceof TypeError) {
+                enqueue(payload, key);
+                refreshQueue();
+                setJustQueued(true);
+            } else {
+                setError(err instanceof Error ? err.message : "Erreur inconnue");
+            }
         } finally {
             setIsSubmitting(false);
         }
@@ -283,6 +316,19 @@ export default function EventsPage() {
                     </div>
 
                     {/* Résultat */}
+                    {justQueued && (
+                        <div className="p-4 flex items-start gap-3 text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-xl">
+                            <WifiOff className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                            <div>
+                                <p className="font-semibold">Mis en file d&apos;attente</p>
+                                <p className="text-xs mt-0.5 text-amber-700">
+                                    Vous êtes hors ligne — cet événement sera envoyé automatiquement
+                                    dès le retour de la connexion.
+                                </p>
+                            </div>
+                        </div>
+                    )}
+
                     {error && (
                         <div className="p-4 flex items-start gap-3 text-sm text-destructive bg-destructive/5 border border-destructive/20 rounded-xl">
                             <AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0" />
@@ -320,6 +366,31 @@ export default function EventsPage() {
                             ))}
                         </div>
                     </div>
+
+                    {/* File d'attente offline */}
+                    {queuedEvents.length > 0 && (
+                        <div className="border border-amber-200 bg-amber-50 rounded-xl shadow-sm overflow-hidden">
+                            <div className="bg-amber-100 px-6 py-4 border-b border-amber-200 flex items-center gap-2">
+                                <WifiOff className="w-4 h-4 text-amber-700" />
+                                <h3 className="font-semibold text-sm text-amber-900">
+                                    En attente de synchronisation ({queuedEvents.length})
+                                </h3>
+                            </div>
+                            <div className="divide-y divide-amber-200">
+                                {queuedEvents.map((q) => (
+                                    <div key={q.id} className="px-5 py-3">
+                                        <p className="text-xs font-mono text-amber-800">
+                                            {q.payload.eventType}
+                                        </p>
+                                        <p className="text-xs text-amber-700">
+                                            {q.payload.memberId.substring(0, 8)}… — mis en file à{" "}
+                                            {new Date(q.queuedAt).toLocaleTimeString("fr-FR")}
+                                        </p>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
 
                     {/* Historique local */}
                     {history.length > 0 && (

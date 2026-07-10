@@ -16,6 +16,8 @@ import reactor.core.publisher.Mono;
 @Order(-90)
 public class TenantSecurityFilter implements WebFilter {
 
+    private static final String ORGANIZATION_HEADER = "X-Organization-Id";
+
     private final JwtProperties jwtProperties;
 
     public TenantSecurityFilter(JwtProperties jwtProperties) {
@@ -24,6 +26,15 @@ public class TenantSecurityFilter implements WebFilter {
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, WebFilterChain chain) {
+        // Un login KernelCore tenant-scopé "nu" ne porte aucun claim d'organisation dans le JWT
+        // (voir TenantResolutionFilter) : l'organisation résolue via X-Organization-Id a déjà été
+        // validée là-bas (organisation existante + active), donc rien à recomparer ici. Le repli
+        // sur le claim JWT reste utile pour un futur token issu du flux discover/select-context.
+        String orgHeader = exchange.getRequest().getHeaders().getFirst(ORGANIZATION_HEADER);
+        if (orgHeader != null && !orgHeader.isBlank()) {
+            return chain.filter(exchange);
+        }
+
         return ReactiveSecurityContextHolder.getContext()
                 .map(ctx -> ctx.getAuthentication())
                 .ofType(JwtAuthenticationToken.class)

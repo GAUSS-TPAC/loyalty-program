@@ -13,6 +13,8 @@ public class KernelCoreProperties {
     private String tokenEndpoint;
     private int connectTimeoutMs = 3000;
     private int readTimeoutMs = 5000;
+    /** Tenant plateforme KernelCore (X-Tenant-Id) sous lequel les admins de ce déploiement se connectent. */
+    private String tenantId;
 
     public String resolvedTokenEndpoint() {
         if (tokenEndpoint != null && !tokenEndpoint.isBlank()) {
@@ -43,4 +45,7 @@ public class KernelCoreProperties {
 
     public int getReadTimeoutMs() { return readTimeoutMs; }
     public void setReadTimeoutMs(int readTimeoutMs) { this.readTimeoutMs = readTimeoutMs; }
+
+    public String getTenantId() { return tenantId; }
+    public void setTenantId(String tenantId) { this.tenantId = tenantId; }
 }

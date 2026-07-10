@@ -9,9 +9,21 @@ public class JwtProperties {
     private String issuerUri;
     private String jwkSetUri;
     private String audience;
-    private String tenantIdClaim = "organization_id";
+    /**
+     * Claim JWT KernelCore portant l'ID d'organisation ({@code oid}) — utilisé en repli
+     * uniquement quand le client n'envoie pas le header X-Organization-Id (voir
+     * TenantResolutionFilter). Un login KernelCore tenant-scopé "nu" ne porte pas ce
+     * claim : {@code oid} n'apparaît que sur un JWT issu du flux discover/select-context.
+     */
+    private String tenantIdClaim = "oid";
     private String userIdClaim = "sub";
-    private String rolesClaim = "roles";
+    /**
+     * KernelCore auth-core émet une liste de codes de permission scopés (ex:
+     * "tenant:admin", "tenant:admin#TENANT", "ROLE_OWNER") dans le claim
+     * "permissions", pas de rôles Keycloak-style. Voir SecurityContextRepository
+     * pour le mapping vers les autorités Spring ROLE_*.
+     */
+    private String rolesClaim = "permissions";
     private String scopesClaim = "scope";
 
     public String getIssuerUri() {

@@ -25,7 +25,8 @@ export default function SandboxPage() {
       const response = await devEventsApi.processEvent({
         eventType,
         memberId,
-        amount: amount ? Number(amount) : undefined,
+        occurredAt: new Date().toISOString(),
+        payload: amount ? { amount: Number(amount) } : undefined,
       });
       setResult(`Success: ${response.pointsAwarded} points awarded, rules applied: ${response.rulesApplied.join(", ") || "none"}`);
     } catch (err) {
