@@ -18,6 +18,7 @@ MODULES = [
     ("bonification", "smoketest_bonification.py"),
     ("tenant", "smoketest_tenant.py"),
     ("webhook", "smoketest_webhook.py"),
+    ("subscription", "smoketest_subscription.py"),
 ]
 
 
