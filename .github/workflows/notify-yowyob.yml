@@ -1,0 +1,12 @@
+name: Notify yowyob
+on:
+  push: { branches: [main] }
+  workflow_dispatch:
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - env: { GH_TOKEN: "${{ secrets.YOWYOB_SYNC_TOKEN }}" }
+        run: |
+          if [ -z "$GH_TOKEN" ]; then echo "YOWYOB_SYNC_TOKEN absent — pose ce secret pour la sync instantanee. skip."; exit 0; fi
+          gh api -X POST repos/yowyob/loyalty-program/dispatches -f event_type=upstream-push

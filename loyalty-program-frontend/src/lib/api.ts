@@ -58,8 +58,10 @@ async function requestWithHeaders<T>(
         throw new Error(`[${res.status}] ${text}`);
     }
 
+    // Certaines réponses (ex: Spring Boot Actuator) utilisent un content-type
+    // "application/vnd.spring-boot.actuator.v3+json" et non "application/json" strict.
     const contentType = res.headers.get("content-type");
-    if (contentType?.includes("application/json")) {
+    if (contentType?.includes("json")) {
         return res.json();
     }
     return null as T;
