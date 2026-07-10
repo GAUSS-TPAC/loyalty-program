@@ -20,25 +20,13 @@ function getAuthHeaders(): HeadersInit {
         typeof window !== "undefined"
             ? sessionStorage.getItem("loyalty_jwt_token")
             : null;
-    const organizationId =
-        typeof window !== "undefined"
-            ? sessionStorage.getItem("loyalty_organization_id")
-            : null;
-    return {
-        "Content-Type": "application/json",
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        ...(organizationId ? { "X-Organization-Id": organizationId } : {}),
-    };
-}
-
-/**
- * Auth pour le portail développeur : une clé API tenant (X-Api-Key), distincte
- * du JWT admin (loyalty_jwt_token) utilisé par le portail /portal.
- */
-function getDevApiKeyHeaders(): HeadersInit {
     const apiKey =
         typeof window !== "undefined"
             ? sessionStorage.getItem("loyalty_dev_api_key")
+            : null;
+    const organizationId =
+        typeof window !== "undefined"
+            ? sessionStorage.getItem("loyalty_organization_id")
             : null;
     return {
         "Content-Type": "application/json",
@@ -47,6 +35,7 @@ function getDevApiKeyHeaders(): HeadersInit {
             : apiKey
                 ? { "X-Api-Key": apiKey }
                 : {}),
+        ...(organizationId ? { "X-Organization-Id": organizationId } : {}),
     };
 }
 
