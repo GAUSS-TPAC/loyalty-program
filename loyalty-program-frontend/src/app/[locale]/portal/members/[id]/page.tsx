@@ -207,7 +207,7 @@ export default function MemberDetailView({ params }: { params: Promise<{ id: str
                   Points Totaux
                 </p>
                 <p className="text-xl font-bold text-foreground font-mono">
-                  {pointsData?.totalPoints.toLocaleString() ?? "0"} <span className="text-xs">pts</span>
+                  {pointsData?.totalPoints?.toLocaleString() ?? "0"} <span className="text-xs">pts</span>
                 </p>
               </div>
             </div>
