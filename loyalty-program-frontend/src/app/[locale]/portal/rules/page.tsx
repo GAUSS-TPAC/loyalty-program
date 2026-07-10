@@ -10,6 +10,7 @@ import {
   RefreshCw,
   Zap,
   Code2,
+  Archive,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { rulesApi, type RuleResponse } from "@/lib/api";
@@ -24,10 +25,16 @@ function statusBadge(status: RuleResponse["status"]) {
         <CheckCircle className="w-3 h-3" /> Actif
       </span>
     );
-  if (status === "INACTIVE")
+  if (status === "SUSPENDED")
     return (
       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium bg-muted text-muted-foreground border border-border">
-        Inactif
+        Suspendu
+      </span>
+    );
+  if (status === "ARCHIVED")
+    return (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium bg-muted text-muted-foreground border border-border">
+        Archivé
       </span>
     );
   return (
@@ -52,10 +59,12 @@ export default function RulesConfiguration() {
   const [validFrom, setValidFrom] = useState(
     new Date().toISOString().split("T")[0]
   );
+  const [validUntil, setValidUntil] = useState("");
 
   // ── UI state ─────────────────────────────────────────────────────────────────
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [activatingId, setActivatingId] = useState<string | null>(null);
+  const [archivingId, setArchivingId] = useState<string | null>(null);
   const [toast, setToast] = useState<{
     message: string;
     type: "success" | "error";
@@ -89,13 +98,14 @@ export default function RulesConfiguration() {
         effects: [{ type: "CREDIT_POINTS", params: { amount: Number(effectValue) } }],
         priority: Number(priority),
         validFrom: new Date(validFrom).toISOString(),
-        validUntil: null,
+        validUntil: validUntil ? new Date(validUntil).toISOString() : null,
       });
       showToast("Règle créée avec succès !", "success");
       setName("");
       setDescription("");
       setEffectValue("");
       setPriority("1");
+      setValidUntil("");
       refetch();
     } catch (err) {
       showToast(
@@ -121,6 +131,23 @@ export default function RulesConfiguration() {
       );
     } finally {
       setActivatingId(null);
+    }
+  };
+
+  // ── Archiver une règle ───────────────────────────────────────────────────────
+  const handleArchive = async (ruleId: string) => {
+    setArchivingId(ruleId);
+    try {
+      await rulesApi.archiveRule(ruleId);
+      showToast("Règle archivée !", "success");
+      refetch();
+    } catch (err) {
+      showToast(
+        err instanceof Error ? err.message : "Erreur d'archivage",
+        "error"
+      );
+    } finally {
+      setArchivingId(null);
     }
   };
 
@@ -253,6 +280,20 @@ export default function RulesConfiguration() {
                   type="date"
                   value={validFrom}
                   onChange={(e) => setValidFrom(e.target.value)}
+                  className="w-full bg-background border border-border rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all shadow-sm"
+                />
+              </div>
+
+              {/* Date de fin */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold uppercase text-muted-foreground tracking-wider ml-1">
+                  Valide jusqu&apos;au (optionnel)
+                </label>
+                <input
+                  type="date"
+                  value={validUntil}
+                  min={validFrom}
+                  onChange={(e) => setValidUntil(e.target.value)}
                   className="w-full bg-background border border-border rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all shadow-sm"
                 />
               </div>
@@ -408,20 +449,36 @@ export default function RulesConfiguration() {
                     </td>
                     <td className="px-6 py-4">{statusBadge(rule.status)}</td>
                     <td className="px-6 py-4 text-right">
-                      {rule.status !== "ACTIVE" && (
-                        <button
-                          onClick={() => handleActivate(rule.id)}
-                          disabled={activatingId === rule.id}
-                          className="inline-flex items-center gap-1.5 text-xs font-medium text-green-700 hover:bg-green-50 border border-green-200 px-2.5 py-1.5 rounded-md transition-colors disabled:opacity-50"
-                        >
-                          {activatingId === rule.id ? (
-                            <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                          ) : (
-                            <Zap className="w-3.5 h-3.5" />
-                          )}
-                          Activer
-                        </button>
-                      )}
+                      <div className="inline-flex items-center gap-2">
+                        {rule.status !== "ACTIVE" && (
+                          <button
+                            onClick={() => handleActivate(rule.id)}
+                            disabled={activatingId === rule.id}
+                            className="inline-flex items-center gap-1.5 text-xs font-medium text-green-700 hover:bg-green-50 border border-green-200 px-2.5 py-1.5 rounded-md transition-colors disabled:opacity-50"
+                          >
+                            {activatingId === rule.id ? (
+                              <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                            ) : (
+                              <Zap className="w-3.5 h-3.5" />
+                            )}
+                            Activer
+                          </button>
+                        )}
+                        {rule.status === "ACTIVE" && (
+                          <button
+                            onClick={() => handleArchive(rule.id)}
+                            disabled={archivingId === rule.id}
+                            className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:bg-secondary border border-border px-2.5 py-1.5 rounded-md transition-colors disabled:opacity-50"
+                          >
+                            {archivingId === rule.id ? (
+                              <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                            ) : (
+                              <Archive className="w-3.5 h-3.5" />
+                            )}
+                            Archiver
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}

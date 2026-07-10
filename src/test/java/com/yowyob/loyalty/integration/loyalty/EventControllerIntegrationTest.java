@@ -28,7 +28,7 @@ import java.util.concurrent.atomic.AtomicReference;
 @ActiveProfiles({"test", "stub"})
 @Import(TestContainersConfig.class)
 @TestPropertySource(properties = {
-        "spring.flyway.enabled=true",
+        "spring.liquibase.enabled=true",
         "app.security.jwt.tenant-id-claim=tenant_id"
 })
 @EnabledIf("com.yowyob.loyalty.integration.loyalty.EventControllerIntegrationTest#isDockerAvailable")

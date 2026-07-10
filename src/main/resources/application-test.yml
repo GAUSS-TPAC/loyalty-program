@@ -11,8 +11,8 @@ spring:
       mode: always
       schema-locations: classpath:schema-test.sql
 
-  # ── Flyway (désactivé en tests pour favoriser les schémas Testcontainers) ──
-  flyway:
+  # ── Liquibase (désactivé en tests pour favoriser les schémas Testcontainers) ──
+  liquibase:
     enabled: false
 
   # ── Kafka (désactivé en tests unitaires) ────────────────────────────────────

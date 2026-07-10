@@ -45,4 +45,9 @@ public class InvoiceRepositoryAdapter implements InvoiceRepository {
     public Flux<InvoiceRecord> findOverduePending(Instant now) {
         return repository.findOverduePending(now).map(mapper::toDomain);
     }
+
+    @Override
+    public Flux<InvoiceRecord> findAll() {
+        return repository.findAll().map(mapper::toDomain);
+    }
 }

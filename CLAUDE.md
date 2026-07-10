@@ -98,7 +98,7 @@ The entire backend is non-blocking: WebFlux for HTTP, R2DBC for PostgreSQL, Reac
 - **Unit tests**: domain logic (`RuleEngineTest`, `PointsAccountTest`, `TierPolicyTest`) — no Spring context, no I/O
 - **Integration tests**: use Testcontainers (PostgreSQL + Redis via `TestContainersConfig`) with `@ActiveProfiles("test")`
 - **Architecture tests**: `HexagonalArchitectureTest` enforces layer boundaries at build time
-- Test profile (`application-test.yml`) uses H2 in-memory R2DBC and disables Flyway, Kafka, and Bonification
+- Test profile (`application-test.yml`) uses H2 in-memory R2DBC and disables Liquibase, Kafka, and Bonification
 
 ### Frontend: Next.js App Router
 
@@ -136,4 +136,4 @@ Copy `.env.example` to `.env` before first run. Frontend uses `loyalty-program-f
 
 ## Database Migrations
 
-Flyway migrations are in `src/main/resources/db/migration/` (V001–V009). Flyway runs on startup via synchronous JDBC even though the app is reactive (Spring JDBC bridge). New migrations must follow the `V{next}__description.sql` naming convention.
+Liquibase changelogs are in `src/main/resources/db/changelog/`, using the formatted-SQL changelog format (plain `.sql` files with `--liquibase formatted sql` / `--changeset` header comments), included in order from `db.changelog-master.yaml`. Liquibase runs on startup via synchronous JDBC even though the app is reactive (Spring JDBC bridge). New migrations must follow the `{next}-description.sql` naming convention and be added to the master changelog. Changesets containing dollar-quoted PL/pgSQL blocks (`DO $$ ... END $$;`, `CREATE FUNCTION ... LANGUAGE plpgsql`) must set `splitStatements:false` so Liquibase doesn't split on the semicolons inside the block.

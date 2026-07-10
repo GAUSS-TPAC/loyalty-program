@@ -12,8 +12,8 @@ spring:
       initial-size: 2
       max-size: 5
 
-  # ── Flyway ───────────────────────────────────────────────────
-  flyway:
+  # ── Liquibase ───────────────────────────────────────────────
+  liquibase:
     url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:loyalty_db}
     user: ${DB_USER:loyalty_user}
     password: ${DB_PASSWORD:loyalty_pass}
@@ -47,6 +47,8 @@ server:
 app:
   dev:
     default-tenant-id: 00000000-0000-0000-0000-000000000001
+  platform-admin:
+    secret: ${PLATFORM_ADMIN_KEY:dev-platform-admin-key}
 
 # ── Logs verbeux en dev ───────────────────────────────────────
 logging:
@@ -55,4 +57,4 @@ logging:
     com.yowyob.loyaulty: TRACE
     org.springframework.r2dbc: DEBUG
     io.r2dbc.postgresql: DEBUG
-    org.flywaydb: DEBUG
+    liquibase: DEBUG

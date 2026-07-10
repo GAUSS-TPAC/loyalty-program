@@ -11,9 +11,11 @@ import {
     Clock,
     ChevronRight,
     WifiOff,
+    FlaskConical,
 } from "lucide-react";
 import { eventsApi, type EventProcessingResponse } from "@/lib/api";
 import { enqueue, flushQueue, getQueue, type QueuedEvent } from "@/lib/offlineQueue";
+import { useApiKeys } from "@/hooks/useBackend";
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
 
@@ -97,6 +99,9 @@ function ResultCard({ result }: { result: EventProcessingResponse }) {
 // ─── Page principale ──────────────────────────────────────────────────────────
 
 export default function EventsPage() {
+    const { data: keys } = useApiKeys();
+    const testKeys = keys?.filter((k) => k.mode === "TEST" && k.active) ?? [];
+
     // Form
     const [eventType, setEventType] = useState("purchase.completed");
     const [memberId, setMemberId] = useState("");
@@ -344,6 +349,43 @@ export default function EventsPage() {
 
                 {/* ── Colonne droite ───────────────────────────────────────────────── */}
                 <div className="space-y-6">
+                    {/* Avertissement isolation */}
+                    <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-4 flex gap-3">
+                        <AlertTriangle className="w-4 h-4 text-yellow-700 shrink-0 mt-0.5" />
+                        <p className="text-xs text-yellow-800">
+                            L&apos;isolation des données de test n&apos;est pas implémentée : les
+                            événements ci-dessus passent par le vrai moteur de règles et affectent
+                            de vraies données membre, même avec une clé en mode TEST.
+                        </p>
+                    </div>
+
+                    {/* Clés TEST */}
+                    <div className="border border-border bg-card rounded-xl shadow-sm overflow-hidden">
+                        <div className="bg-secondary px-6 py-4 border-b border-border flex items-center gap-2">
+                            <FlaskConical className="w-4 h-4 text-primary" />
+                            <h3 className="font-semibold text-sm text-foreground">
+                                Vos clés en mode TEST
+                            </h3>
+                        </div>
+                        <div className="p-5">
+                            {testKeys.length === 0 ? (
+                                <p className="text-xs text-muted-foreground">
+                                    Aucune clé TEST. Créez-en une depuis la page API Keys pour
+                                    distinguer clairement le trafic d&apos;intégration.
+                                </p>
+                            ) : (
+                                <div className="space-y-2">
+                                    {testKeys.map((k) => (
+                                        <div key={k.id} className="flex items-center justify-between text-xs">
+                                            <span className="text-foreground">{k.name}</span>
+                                            <code className="font-mono text-muted-foreground">{k.keyPrefix}</code>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
                     {/* Info panel */}
                     <div className="border border-border bg-card rounded-xl shadow-sm overflow-hidden">
                         <div className="bg-secondary px-6 py-4 border-b border-border flex items-center gap-2">

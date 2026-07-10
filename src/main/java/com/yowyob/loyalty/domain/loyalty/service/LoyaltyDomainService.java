@@ -33,7 +33,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 public class LoyaltyDomainService implements ProcessEventUseCase, CreateRuleUseCase, ActivateRuleUseCase,
-        GetMemberPointsUseCase, GetMemberTierUseCase {
+        ArchiveRuleUseCase, GetMemberPointsUseCase, GetMemberTierUseCase {
 
     private final RuleEngine ruleEngine;
     private final CounterService counterService;
@@ -260,6 +260,16 @@ public class LoyaltyDomainService implements ProcessEventUseCase, CreateRuleUseC
         Rule activated = rule.activate();
         ruleCache.invalidateCache(tenantId);
         return ruleRepo.save(activated);
+    }
+
+    @Override
+    public Rule archiveRule(TenantId tenantId, UUID ruleId) {
+        Rule rule = ruleRepo.findById(ruleId)
+                .filter(r -> r.getTenantId().equals(tenantId))
+                .orElseThrow(() -> new LoyaltyDomainException("Règle introuvable: " + ruleId));
+        Rule archived = rule.archive();
+        ruleCache.invalidateCache(tenantId);
+        return ruleRepo.save(archived);
     }
 
     @Override

@@ -56,4 +56,9 @@ public class TenantSubscriptionRepositoryAdapter implements TenantSubscriptionRe
     public Flux<TenantSubscription> findExpiredActive(Instant now) {
         return repository.findExpiredActive(now).map(mapper::toDomain);
     }
+
+    @Override
+    public Flux<TenantSubscription> findAll() {
+        return repository.findAll().map(mapper::toDomain);
+    }
 }

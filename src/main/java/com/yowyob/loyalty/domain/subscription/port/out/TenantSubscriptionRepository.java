@@ -14,4 +14,5 @@ public interface TenantSubscriptionRepository {
     Mono<TenantSubscription> findById(UUID id);
     Flux<TenantSubscription> findExpiredTrials(Instant now);
     Flux<TenantSubscription> findExpiredActive(Instant now);
+    Flux<TenantSubscription> findAll();
 }

@@ -9,7 +9,7 @@ This is the backend for the Loyalty Program application, a SaaS multi-tenant pla
 - **Redis** (Caching and Idempotency)
 - **Kafka** (Event Streaming)
 - **Keycloak** (OAuth2 Identity Provider)
-- **Flyway** (Database Migrations)
+- **Liquibase** (Database Migrations)
 
 ## Prerequisites
 - Java 21

@@ -14,16 +14,13 @@ spring:
       max-idle-time: 30m
       validation-query: SELECT 1
 
-  # ── Flyway (migrations SQL via JDBC synchrone) ──────────────
-  flyway:
+  # ── Liquibase (migrations SQL via JDBC synchrone) ───────────
+  liquibase:
     enabled: true
     url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:loyalty_db}
     user: ${DB_USER:loyalty_user}
     password: ${DB_PASSWORD:loyalty_pass}
-    locations: classpath:db/migration
-    baseline-on-migrate: true
-    validate-on-migrate: true
-    out-of-order: false
+    change-log: classpath:db/changelog/db.changelog-master.yaml
 
   # ── Redis (idempotence + cache solde) ───────────────────────
   # `url` prend le pas sur host/port/password quand elle est renseignée
@@ -106,7 +103,7 @@ logging:
     root: INFO
     com.yowyob.loyalty: DEBUG
     org.springframework.r2dbc: INFO
-    org.flywaydb: INFO
+    liquibase: INFO
   pattern:
     console: "%d{HH:mm:ss.SSS} [%thread] %-5level [%X{tenantId}] %logger{36} - %msg%n"
 
@@ -130,6 +127,11 @@ app:
     token-ttl: ${BONIFICATION_TOKEN_TTL:PT50M}
     connect-timeout-ms: ${BONIFICATION_CONNECT_TIMEOUT_MS:5000}
     read-timeout-ms: ${BONIFICATION_READ_TIMEOUT_MS:15000}
+
+  # Secret statique pour la console plateforme (/api/v1/admin/platform/**), qui
+  # n'est rattachée à aucun tenant — distinct des credentials tenant (JWT / clé API).
+  platform-admin:
+    secret: ${PLATFORM_ADMIN_KEY:}
 
   security:
     jwt:

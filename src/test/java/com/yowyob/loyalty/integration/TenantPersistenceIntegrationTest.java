@@ -20,7 +20,7 @@ import java.util.UUID;
 @SpringBootTest
 @Import(TestContainersConfig.class)
 @org.springframework.test.context.ActiveProfiles({"test", "stub"})
-@TestPropertySource(properties = "spring.flyway.enabled=true")
+@TestPropertySource(properties = "spring.liquibase.enabled=true")
 @EnabledIf("com.yowyob.loyalty.integration.TenantPersistenceIntegrationTest#isDockerAvailable")
 public class TenantPersistenceIntegrationTest {
 
