@@ -1,5 +1,7 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
+> **Dépôt miroir** : le dépôt [GAUSS-TPAC/Loyalty-Program-frontend](https://github.com/GAUSS-TPAC/Loyalty-Program-frontend) est généré automatiquement depuis le dossier `loyalty-program-frontend/` du monorepo à chaque push sur `main` (workflow *Mirror frontend*). Ne pas committer directement sur le miroir : tout commit y serait écrasé au prochain sync. Travaillez toujours dans le monorepo.
+
 ## Getting Started
 
 First, run the development server:
