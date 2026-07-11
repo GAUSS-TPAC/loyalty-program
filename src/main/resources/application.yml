@@ -70,6 +70,10 @@ spring:
 # ── Serveur WebFlux ──────────────────────────────────────────
 server:
   port: ${SERVER_PORT:8081}
+  # Derrière le reverse-proxy (Traefik strippe /loyalty-api et envoie X-Forwarded-Prefix) :
+  # sans ceci, les redirections absolues (ex. /swagger-ui.html -> /swagger-ui/index.html)
+  # perdent le préfixe et tombent en 404 côté proxy.
+  forward-headers-strategy: framework
   error:
     include-message: never            # Pas de stacktrace en réponse (sécurité)
     include-exception: false

@@ -4,6 +4,8 @@ import com.yowyob.loyalty.infrastructure.security.JwtAuthenticationFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.config.annotation.method.configuration.EnableReactiveMethodSecurity;
 import org.springframework.security.config.annotation.web.reactive.EnableWebFluxSecurity;
 import org.springframework.security.config.web.server.SecurityWebFiltersOrder;
@@ -32,6 +34,15 @@ public class SecurityConfig {
                 .csrf(ServerHttpSecurity.CsrfSpec::disable)
                 .httpBasic(ServerHttpSecurity.HttpBasicSpec::disable)
                 .formLogin(ServerHttpSecurity.FormLoginSpec::disable)
+                // Sans entry point explicite, l'ExceptionTranslationWebFilter réactif retombe
+                // sur HttpBasicServerAuthenticationEntryPoint (WWW-Authenticate: Basic), ce qui
+                // fait surgir la boîte de dialogue de connexion native du navigateur sur tout
+                // 401 — même avec httpBasic désactivé ci-dessus.
+                .exceptionHandling(spec -> spec.authenticationEntryPoint((exchange, ex) -> {
+                    exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
+                    exchange.getResponse().getHeaders().set(HttpHeaders.WWW_AUTHENTICATE, "Bearer");
+                    return exchange.getResponse().setComplete();
+                }))
                 // Sans ceci, notre SecurityContextRepository (qui valide le Bearer JWT et en
                 // extrait les autorités ROLE_*) n'est jamais invoqué pour peupler le contexte
                 // réactif : JwtAuthenticationFilter (AuthenticationWebFilter) n'aide pas non plus
