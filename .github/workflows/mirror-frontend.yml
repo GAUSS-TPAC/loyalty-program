@@ -1,0 +1,33 @@
+name: Mirror frontend to Loyalty-Program-frontend
+on:
+  push:
+    branches: [main]
+    paths:
+      - "loyalty-program-frontend/**"
+  workflow_dispatch:
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure git identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Split loyalty-program-frontend subtree
+        run: git subtree split --prefix=loyalty-program-frontend -b frontend-mirror-split
+
+      - name: Push to Loyalty-Program-frontend
+        env:
+          TOKEN: ${{ secrets.FRONTEND_MIRROR_TOKEN }}
+        run: |
+          if [ -z "$TOKEN" ]; then
+            echo "FRONTEND_MIRROR_TOKEN absent — configure ce secret pour activer le mirroring." >&2
+            exit 1
+          fi
+          git push "https://x-access-token:${TOKEN}@github.com/GAUSS-TPAC/Loyalty-Program-frontend.git" frontend-mirror-split:main --force
