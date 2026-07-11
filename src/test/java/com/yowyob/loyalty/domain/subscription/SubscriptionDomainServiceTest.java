@@ -7,6 +7,7 @@ import com.yowyob.loyalty.domain.subscription.port.out.InvoiceRepository;
 import com.yowyob.loyalty.domain.subscription.port.out.SubscriptionPlanRepository;
 import com.yowyob.loyalty.domain.subscription.port.out.TenantSubscriptionRepository;
 import com.yowyob.loyalty.domain.subscription.service.SubscriptionDomainService;
+import com.yowyob.loyalty.domain.tenant.port.out.TenantDirectoryPort;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import reactor.core.publisher.Flux;
@@ -60,6 +61,7 @@ class SubscriptionDomainServiceTest {
                 return Flux.fromIterable(subscriptionsById.values())
                         .filter(s -> s.status() == SubscriptionStatus.ACTIVE && s.isExpired(now));
             }
+            public Flux<TenantSubscription> findAll() { return Flux.fromIterable(subscriptionsById.values()); }
         };
         InvoiceRepository invoiceRepository = new InvoiceRepository() {
             public Mono<InvoiceRecord> save(InvoiceRecord i) { invoices.add(i); return Mono.just(i); }
@@ -67,9 +69,11 @@ class SubscriptionDomainServiceTest {
             public Flux<InvoiceRecord> findOverduePending(Instant now) {
                 return Flux.fromIterable(invoices).filter(i -> i.isOverdue(now));
             }
+            public Flux<InvoiceRecord> findAll() { return Flux.fromIterable(invoices); }
         };
+        TenantDirectoryPort tenantDirectoryPort = t -> Mono.empty();
 
-        service = new SubscriptionDomainService(planRepository, subscriptionRepository, invoiceRepository);
+        service = new SubscriptionDomainService(planRepository, subscriptionRepository, invoiceRepository, tenantDirectoryPort);
         plan = SubscriptionPlan.create("PRO", "Pro", "desc", new BigDecimal("10"), new BigDecimal("100"), "XAF",
                 new PlanFeatures(50, 1000, 100000, true, true, true, true));
         plans.put(plan.id(), plan);

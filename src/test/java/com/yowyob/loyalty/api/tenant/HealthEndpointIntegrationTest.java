@@ -8,6 +8,9 @@ import org.springframework.test.web.reactive.server.WebTestClient;
 // @Import(TestContainersConfig.class) - Included when tests run with the right profiles
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @org.springframework.test.context.ActiveProfiles({"test", "stub"})
+// La première requête après le démarrage du contexte peut dépasser les 5s par défaut
+// quand la machine est chargée (suite complète + Testcontainers).
+@org.springframework.boot.test.autoconfigure.web.reactive.AutoConfigureWebTestClient(timeout = "30000")
 public class HealthEndpointIntegrationTest {
 
     @Autowired
