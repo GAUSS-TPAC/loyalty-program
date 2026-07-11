@@ -28,9 +28,11 @@
 -- avant que le changement de type ne soit pleinement acté.
 -- ============================================================
 
-ALTER TABLE wallets DROP CONSTRAINT wallets_freeze_reason_check;
-ALTER TABLE wallets DROP CONSTRAINT wallets_frozen_at_check;
-ALTER TABLE wallets DROP CONSTRAINT wallets_closed_at_check;
+-- IF EXISTS : rend le changeset rejouable sur une base où la conversion a déjà
+-- eu lieu (ex. schéma hérité de Flyway) — les paires DROP/ADD deviennent idempotentes.
+ALTER TABLE wallets DROP CONSTRAINT IF EXISTS wallets_freeze_reason_check;
+ALTER TABLE wallets DROP CONSTRAINT IF EXISTS wallets_frozen_at_check;
+ALTER TABLE wallets DROP CONSTRAINT IF EXISTS wallets_closed_at_check;
 
 -- Index partiels : leur prédicat WHERE fige un littéral résolu au type
 -- enum d'origine au moment de la création de l'index.
@@ -57,8 +59,8 @@ CREATE INDEX IF NOT EXISTS idx_wallets_pending_kyc
     ON wallets (tenant_id, kyc_validated)
     WHERE status = 'PENDING_KYC' AND kyc_validated = FALSE;
 
-ALTER TABLE wallet_transactions DROP CONSTRAINT wt_reversal_needs_original;
-ALTER TABLE wallet_transactions DROP CONSTRAINT wt_completed_at_terminal;
+ALTER TABLE wallet_transactions DROP CONSTRAINT IF EXISTS wt_reversal_needs_original;
+ALTER TABLE wallet_transactions DROP CONSTRAINT IF EXISTS wt_completed_at_terminal;
 
 DROP INDEX IF EXISTS idx_wt_debit_since;
 DROP INDEX IF EXISTS idx_wt_reconciliation;

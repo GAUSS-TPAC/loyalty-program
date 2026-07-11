@@ -10,7 +10,7 @@
 -- ============================================================
 
 ALTER TABLE webhook_deliveries
-    DROP CONSTRAINT webhook_deliveries_endpoint_id_fkey,
+    DROP CONSTRAINT IF EXISTS webhook_deliveries_endpoint_id_fkey,
     ADD CONSTRAINT webhook_deliveries_endpoint_id_fkey
         FOREIGN KEY (endpoint_id) REFERENCES webhook_endpoints (id)
         ON DELETE CASCADE;

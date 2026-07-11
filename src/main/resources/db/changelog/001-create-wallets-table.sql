@@ -81,6 +81,9 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+-- PostgreSQL n'a pas de CREATE TRIGGER IF NOT EXISTS : le DROP préalable rend
+-- l'opération rejouable sur une base déjà provisionnée (schéma hérité de Flyway).
+DROP TRIGGER IF EXISTS wallets_set_updated_at ON wallets;
 CREATE TRIGGER wallets_set_updated_at
     BEFORE UPDATE ON wallets
     FOR EACH ROW EXECUTE FUNCTION set_updated_at();

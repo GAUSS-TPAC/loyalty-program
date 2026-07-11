@@ -64,6 +64,9 @@ CREATE INDEX IF NOT EXISTS idx_wp_tenant_active
     ON wallet_policies (tenant_id, is_active);
 
 -- ── Trigger updated_at ───────────────────────────────────────
+-- Pas de CREATE TRIGGER IF NOT EXISTS en PostgreSQL : le DROP préalable rend
+-- l'opération rejouable sur une base déjà provisionnée (schéma hérité de Flyway).
+DROP TRIGGER IF EXISTS wallet_policies_set_updated_at ON wallet_policies;
 CREATE TRIGGER wallet_policies_set_updated_at
     BEFORE UPDATE ON wallet_policies
     FOR EACH ROW EXECUTE FUNCTION set_updated_at();
@@ -71,6 +74,9 @@ CREATE TRIGGER wallet_policies_set_updated_at
 -- ── Ajout de la FK wallets → wallet_policies (rétroactif) ────
 -- La table wallet_policies n'existait pas lors de V001.
 -- On ajoute la contrainte maintenant que les deux tables existent.
+-- Idem : pas de ADD CONSTRAINT IF NOT EXISTS, d'où le DROP préalable.
+ALTER TABLE wallets
+    DROP CONSTRAINT IF EXISTS wallets_fk_wallet_policy;
 ALTER TABLE wallets
     ADD CONSTRAINT wallets_fk_wallet_policy
         FOREIGN KEY (wallet_policy_id) REFERENCES wallet_policies(id)
