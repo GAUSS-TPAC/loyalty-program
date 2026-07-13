@@ -15,7 +15,8 @@ public class CreditPointsExecutor implements EffectExecutor {
 
     @Override
     public boolean supports(EffectType type) {
-        return type == EffectType.CREDIT_POINTS || type == EffectType.MULTIPLY_POINTS;
+        return type == EffectType.CREDIT_POINTS || type == EffectType.MULTIPLY_POINTS
+                || type == EffectType.DEBIT_POINTS;
     }
 
     @Override
@@ -37,6 +38,21 @@ public class CreditPointsExecutor implements EffectExecutor {
 
             return new AppliedEffect(effect.type().name(), ruleId.toString(), ruleName, 
                     Map.of("points_credited", finalAmount, "multiplier_applied", multiplier));
+        } else if (effect.type() == EffectType.DEBIT_POINTS) {
+            Long amount = effect.getParamAsLong("amount").orElse(0L);
+            if (amount <= 0) {
+                return new AppliedEffect(effect.type().name(), ruleId.toString(), ruleName, Map.of("error", "Invalid or missing amount"));
+            }
+
+            if (context.pointsAccount() == null || !context.pointsAccount().hasEnoughPoints(amount)) {
+                return new AppliedEffect(effect.type().name(), ruleId.toString(), ruleName,
+                        Map.of("error", "Insufficient points balance"));
+            }
+
+            executionContext.addPointsCredit(context.event().memberId(), amount, "DEBIT", ruleId);
+
+            return new AppliedEffect(effect.type().name(), ruleId.toString(), ruleName,
+                    Map.of("points_debited", amount));
         } else if (effect.type() == EffectType.MULTIPLY_POINTS) {
             BigDecimal multiplier = effect.getParamAsBigDecimal("multiplier").orElse(BigDecimal.ONE);
             

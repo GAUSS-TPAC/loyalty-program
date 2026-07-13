@@ -33,7 +33,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 public class LoyaltyDomainService implements ProcessEventUseCase, CreateRuleUseCase, ActivateRuleUseCase,
-        ArchiveRuleUseCase, GetMemberPointsUseCase, GetMemberTierUseCase {
+        ArchiveRuleUseCase, GetMemberPointsUseCase, GetMemberTierUseCase, AdjustMemberPointsUseCase {
 
     private final RuleEngine ruleEngine;
     private final CounterService counterService;
@@ -117,9 +117,10 @@ public class LoyaltyDomainService implements ProcessEventUseCase, CreateRuleUseC
         }
 
         // 4. Progress stamp counters for matching triggers before rule evaluation
+        Map<String, Counter> countersBeforeEvent = Map.copyOf(counters);
         incrementCountersForMatchedTriggers(event, rules, counters);
 
-        EvaluationContext context = new EvaluationContext(event, pointsAccount, memberTier, counters, tierPolicy);
+        EvaluationContext context = new EvaluationContext(event, pointsAccount, memberTier, counters, tierPolicy, countersBeforeEvent);
 
         // 5. Evaluate Rules
         EffectExecutionContext effectContext = new EffectExecutionContext();
@@ -144,7 +145,7 @@ public class LoyaltyDomainService implements ProcessEventUseCase, CreateRuleUseC
             if ("CREDIT".equals(op.type())) {
                 updatedAccount = updatedAccount.earn(op.amount());
                 PointsTransaction tx = PointsTransaction.forCredit(updatedAccount.getId(), event.tenantId(),
-                        op.amount(), updatedAccount.getAvailablePoints(), op.ruleId(), event.idempotencyKey());
+                        op.amount(), updatedAccount.getAvailablePoints(), op.ruleId(), event.idempotencyKey(), event.apiKeyId());
                 pointsTxRepo.save(tx);
 
                 for (ActiveCampaignPort.CampaignBonus bonus : activeBonuses) {
@@ -152,12 +153,22 @@ public class LoyaltyDomainService implements ProcessEventUseCase, CreateRuleUseC
                     if (extra > 0) {
                         updatedAccount = updatedAccount.earn(extra);
                         PointsTransaction bonusTx = PointsTransaction.forCredit(updatedAccount.getId(), event.tenantId(),
-                                extra, updatedAccount.getAvailablePoints(), null, null);
+                                extra, updatedAccount.getAvailablePoints(), null, null, event.apiKeyId());
                         pointsTxRepo.save(bonusTx);
                         finalEffects.add(new AppliedEffect("CAMPAIGN_BONUS", bonus.campaignId().toString(),
                                 bonus.campaignName(), Map.of("extra_points", extra)));
                     }
                 }
+            } else if ("DEBIT".equals(op.type())) {
+                if (!updatedAccount.hasEnoughPoints(op.amount())) {
+                    // Balance may have changed since the executor's check (e.g. an earlier
+                    // DEBIT in the same batch); skip rather than fail the whole event.
+                    continue;
+                }
+                updatedAccount = updatedAccount.spend(op.amount());
+                PointsTransaction tx = PointsTransaction.forDebit(updatedAccount.getId(), event.tenantId(),
+                        op.amount(), updatedAccount.getAvailablePoints(), event.apiKeyId());
+                pointsTxRepo.save(tx);
             }
         }
 
@@ -186,10 +197,11 @@ public class LoyaltyDomainService implements ProcessEventUseCase, CreateRuleUseC
             }
         }
 
-        // Apply Reward Grants (bonification partner)
+        // Apply Reward Grants
         for (EffectExecutionContext.RewardOperation op : effectContext.getPendingRewardOperations()) {
             if (rewardGrantPort != null) {
-                rewardGrantPort.grantReward(event.tenantId(), op.memberId(), op.rewardId(), op.amount());
+                rewardGrantPort.grantReward(event.tenantId(), op.memberId(), op.rewardId(), op.amount(),
+                        op.ruleId(), event.idempotencyKey());
             }
         }
 
@@ -289,6 +301,26 @@ public class LoyaltyDomainService implements ProcessEventUseCase, CreateRuleUseC
     public MemberTier getTier(TenantId tenantId, UserId memberId) {
         return tierRepo.findByMemberId(tenantId, memberId)
                 .orElseGet(() -> MemberTier.defaultTier(UUID.randomUUID(), tenantId, memberId));
+    }
+
+    @Override
+    public PointsAccount creditPoints(TenantId tenantId, UserId memberId, long amount, String reason) {
+        PointsAccount account = getPoints(tenantId, memberId);
+        PointsAccount updated = account.earn(amount);
+        pointsRepo.save(updated);
+        pointsTxRepo.save(PointsTransaction.forManualCredit(updated.getId(), tenantId, amount,
+                updated.getAvailablePoints(), reason));
+        return updated;
+    }
+
+    @Override
+    public PointsAccount debitPoints(TenantId tenantId, UserId memberId, long amount, String reason) {
+        PointsAccount account = getPoints(tenantId, memberId);
+        PointsAccount updated = account.spend(amount);
+        pointsRepo.save(updated);
+        pointsTxRepo.save(PointsTransaction.forManualDebit(updated.getId(), tenantId, amount,
+                updated.getAvailablePoints(), reason));
+        return updated;
     }
 
     private void incrementCountersForMatchedTriggers(IncomingEvent event, List<Rule> rules, Map<String, Counter> counters) {

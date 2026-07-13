@@ -12,14 +12,20 @@
     "passwordLabel": "Password",
     "passwordPlaceholder": "••••••••",
     "emailLabel": "Email Address",
-    "emailPlaceholder": "john.doe@example.com"
+    "emailPlaceholder": "john.doe@example.com",
+    "credentialsTab": "Email / Password",
+    "apiKeyTab": "API Key",
+    "apiKeyTitle": "Developer Access",
+    "apiKeyDescription": "Paste your tenant API key to unlock the developer portal.",
+    "apiKeyLabel": "API Key",
+    "unlockPortal": "Unlock portal"
   },
   "Navigation": {
     "overview": "Overview",
     "rulesConfig": "Rules Config",
     "establishment": "Establishment",
     "walletPolicy": "Wallet Policy",
-    "membersDirectory": "Members Directory",
+    "membersDirectory": "My applications",
     "eventLogs": "Event Logs"
   },
   "Sidebar": {

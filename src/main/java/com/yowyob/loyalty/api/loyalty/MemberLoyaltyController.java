@@ -1,13 +1,16 @@
 package com.yowyob.loyalty.api.loyalty;
 
+import com.yowyob.loyalty.api.loyalty.dto.request.AdjustPointsRequest;
 import com.yowyob.loyalty.api.loyalty.dto.response.MemberTierResponse;
 import com.yowyob.loyalty.api.loyalty.dto.response.PointsAccountResponse;
 import com.yowyob.loyalty.api.loyalty.dto.response.PointsTransactionResponse;
+import com.yowyob.loyalty.domain.loyalty.port.in.AdjustMemberPointsUseCase;
 import com.yowyob.loyalty.domain.loyalty.port.in.GetMemberPointsUseCase;
 import com.yowyob.loyalty.domain.loyalty.port.in.GetMemberTierUseCase;
 import com.yowyob.loyalty.domain.shared.model.UserId;
 import com.yowyob.loyalty.shared.multitenancy.TenantContextHolder;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Flux;
@@ -23,13 +26,16 @@ public class MemberLoyaltyController {
 
     private final GetMemberPointsUseCase getMemberPointsUseCase;
     private final GetMemberTierUseCase getMemberTierUseCase;
+    private final AdjustMemberPointsUseCase adjustMemberPointsUseCase;
 
     public MemberLoyaltyController(
             GetMemberPointsUseCase getMemberPointsUseCase,
-            GetMemberTierUseCase getMemberTierUseCase
+            GetMemberTierUseCase getMemberTierUseCase,
+            AdjustMemberPointsUseCase adjustMemberPointsUseCase
     ) {
         this.getMemberPointsUseCase = getMemberPointsUseCase;
         this.getMemberTierUseCase = getMemberTierUseCase;
+        this.adjustMemberPointsUseCase = adjustMemberPointsUseCase;
     }
 
     @GetMapping("/points")
@@ -66,5 +72,19 @@ public class MemberLoyaltyController {
                 .flatMap(tenantId -> Mono.fromCallable(() -> MemberTierResponse.from(
                                 getMemberTierUseCase.getTier(tenantId, UserId.of(memberId))))
                         .subscribeOn(Schedulers.boundedElastic()));
+    }
+
+    @PostMapping("/points/adjust")
+    @PreAuthorize("hasRole('TENANT_ADMIN')")
+    public Mono<PointsAccountResponse> adjustPoints(@PathVariable UUID memberId, @Valid @RequestBody AdjustPointsRequest request) {
+        return TenantContextHolder.getTenantId()
+                .flatMap(tenantId -> Mono.fromCallable(() -> {
+                    UserId userId = UserId.of(memberId);
+                    var account = request.debit()
+                            ? adjustMemberPointsUseCase.debitPoints(tenantId, userId, request.amount(), request.reason())
+                            : adjustMemberPointsUseCase.creditPoints(tenantId, userId, request.amount(), request.reason());
+                    var tier = getMemberTierUseCase.getTier(tenantId, userId);
+                    return PointsAccountResponse.from(account, tier);
+                }).subscribeOn(Schedulers.boundedElastic()));
     }
 }

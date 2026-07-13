@@ -14,8 +14,16 @@ public record IncomingEvent(
         UserId memberId,
         String idempotencyKey,
         Instant occurredAt,
-        Map<String, Object> payload
+        Map<String, Object> payload,
+        java.util.UUID apiKeyId
 ) {
+    // apiKeyId = clé API ayant soumis l'événement (null si JWT ou dev) ;
+    // sert à attribuer le flux de points par application.
+    public IncomingEvent(String eventType, TenantId tenantId, UserId memberId,
+                         String idempotencyKey, Instant occurredAt, Map<String, Object> payload) {
+        this(eventType, tenantId, memberId, idempotencyKey, occurredAt, payload, null);
+    }
+
     public Optional<Object> getPayloadValue(String key) {
         if (payload == null) return Optional.empty();
         return Optional.ofNullable(payload.get(key));

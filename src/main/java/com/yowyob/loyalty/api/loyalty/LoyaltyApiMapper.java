@@ -16,13 +16,19 @@ public final class LoyaltyApiMapper {
     private LoyaltyApiMapper() {}
 
     public static IncomingEvent toIncomingEvent(IncomingEventRequest request, TenantId tenantId, String idempotencyKey) {
+        return toIncomingEvent(request, tenantId, idempotencyKey, null);
+    }
+
+    public static IncomingEvent toIncomingEvent(IncomingEventRequest request, TenantId tenantId,
+                                                String idempotencyKey, UUID apiKeyId) {
         return new IncomingEvent(
                 request.eventType(),
                 tenantId,
                 UserId.of(UUID.fromString(request.memberId())),
                 idempotencyKey,
                 request.occurredAt(),
-                request.payload() != null ? request.payload() : Map.of()
+                request.payload() != null ? request.payload() : Map.of(),
+                apiKeyId
         );
     }
 

@@ -11,7 +11,6 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import {
     memberApi,
     rulesApi,
-    bonificationApi,
     systemApi,
     promoApi,
     campaignApi,
@@ -29,7 +28,6 @@ import {
     type PointsTransactionResponse,
     type WalletTransaction,
     type RuleResponse,
-    type BonificationStatusResponse,
     type HealthResponse,
     type PromoCampaignResponse,
     type CampaignResponse,
@@ -42,6 +40,7 @@ import {
     type MemberSummaryResponse,
     type TierPolicyResponse,
     type PointsTransactionLogResponse,
+    type ApiKeyPointsFlowResponse,
 } from "@/lib/api";
 
 // ─── Générique ───────────────────────────────────────────────────────────────
@@ -155,13 +154,6 @@ export function useRules(): UseQueryResult<RuleResponse[]> {
     return useQuery(() => rulesApi.listRules());
 }
 
-// ─── Hooks Bonification ───────────────────────────────────────────────────────
-
-/** Retourne le statut de l'intégration bonification */
-export function useBonificationStatus(): UseQueryResult<BonificationStatusResponse> {
-    return useQuery(() => bonificationApi.getStatus());
-}
-
 // ─── Hooks Système ────────────────────────────────────────────────────────────
 
 /** Retourne la santé du backend */
@@ -241,6 +233,11 @@ export function useAdminLogs(
     size = 20
 ): UseQueryResult<PointsTransactionLogResponse[]> {
     return useQuery(() => adminLogsApi.listPointsTransactions(page, size), [page, size]);
+}
+
+/** Retourne le flux de points (crédité/débité) agrégé par clé API */
+export function useApiKeyPointsFlow(): UseQueryResult<ApiKeyPointsFlowResponse[]> {
+    return useQuery(() => adminLogsApi.flowByApiKey());
 }
 
 // ─── Hooks Console Plateforme ─────────────────────────────────────────────────

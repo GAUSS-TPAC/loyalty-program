@@ -3,6 +3,7 @@ package com.yowyob.loyalty.domain.loyalty;
 import com.yowyob.loyalty.domain.loyalty.model.counter.Counter;
 import com.yowyob.loyalty.domain.loyalty.model.event.EventProcessingResult;
 import com.yowyob.loyalty.domain.loyalty.model.event.IncomingEvent;
+import com.yowyob.loyalty.domain.loyalty.model.points.ApiKeyPointsFlow;
 import com.yowyob.loyalty.domain.loyalty.model.points.PointsAccount;
 import com.yowyob.loyalty.domain.loyalty.model.points.PointsTransaction;
 import com.yowyob.loyalty.domain.loyalty.model.rule.* ;
@@ -136,6 +137,39 @@ class LoyaltyDomainServiceTest {
         assertEquals(1000, account.getAvailablePoints());
     }
 
+    @Test
+    void creditPoints_manualAdjustment_increasesBalanceAndRecordsTransaction() {
+        TenantId t1 = new TenantId(UUID.randomUUID());
+        UserId u1 = new UserId(UUID.randomUUID());
+
+        PointsAccount updated = service.creditPoints(t1, u1, 200, "Geste commercial");
+
+        assertEquals(200, updated.getAvailablePoints());
+        PointsAccount stored = pointsRepo.findByMemberId(t1, u1).orElseThrow();
+        assertEquals(200, stored.getAvailablePoints());
+    }
+
+    @Test
+    void debitPoints_manualAdjustment_decreasesBalance() {
+        TenantId t1 = new TenantId(UUID.randomUUID());
+        UserId u1 = new UserId(UUID.randomUUID());
+        service.creditPoints(t1, u1, 200, "Solde initial");
+
+        PointsAccount updated = service.debitPoints(t1, u1, 80, "Correction");
+
+        assertEquals(120, updated.getAvailablePoints());
+    }
+
+    @Test
+    void debitPoints_insufficientBalance_throws() {
+        TenantId t1 = new TenantId(UUID.randomUUID());
+        UserId u1 = new UserId(UUID.randomUUID());
+        service.creditPoints(t1, u1, 50, "Solde initial");
+
+        assertThrows(com.yowyob.loyalty.domain.loyalty.exception.LoyaltyDomainException.class,
+                () -> service.debitPoints(t1, u1, 100, "Trop"));
+    }
+
     // --- In Memory Fake Implementations ---
 
     static class InMemoryRuleRepository implements RuleRepository {
@@ -167,6 +201,7 @@ class LoyaltyDomainServiceTest {
         @Override public List<PointsTransaction> findByTenantId(TenantId t, int page, int size) {
             return txs.stream().filter(tx -> tx.tenantId().equals(t)).toList();
         }
+        @Override public List<ApiKeyPointsFlow> aggregateFlowByApiKey(TenantId t) { return List.of(); }
     }
 
     static class InMemoryCounterRepository implements CounterRepository {

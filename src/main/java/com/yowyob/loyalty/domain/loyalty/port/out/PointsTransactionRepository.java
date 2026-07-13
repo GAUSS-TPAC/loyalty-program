@@ -1,5 +1,6 @@
 package com.yowyob.loyalty.domain.loyalty.port.out;
 
+import com.yowyob.loyalty.domain.loyalty.model.points.ApiKeyPointsFlow;
 import com.yowyob.loyalty.domain.loyalty.model.points.PointsTransaction;
 import com.yowyob.loyalty.domain.shared.model.TenantId;
 
@@ -11,4 +12,5 @@ public interface PointsTransactionRepository {
     List<PointsTransaction> findByAccountId(UUID accountId, int limit, int offset);
     boolean existsByEventIdempotencyKey(TenantId tenantId, String idempotencyKey);
     List<PointsTransaction> findByTenantId(TenantId tenantId, int page, int size);
+    List<ApiKeyPointsFlow> aggregateFlowByApiKey(TenantId tenantId);
 }

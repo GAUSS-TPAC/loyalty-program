@@ -1,5 +1,6 @@
 package com.yowyob.loyalty.infrastructure.persistence.loyalty.adapter;
 
+import com.yowyob.loyalty.domain.loyalty.model.points.ApiKeyPointsFlow;
 import com.yowyob.loyalty.domain.loyalty.model.points.PointsTransaction;
 import com.yowyob.loyalty.domain.loyalty.port.out.PointsTransactionRepository;
 import com.yowyob.loyalty.domain.shared.model.TenantId;
@@ -55,6 +56,29 @@ public class PointsTransactionRepositoryAdapter implements PointsTransactionRepo
     public List<PointsTransaction> findByTenantId(TenantId tenantId, int page, int size) {
         return repository.findByTenantIdOrderByCreatedAtDesc(tenantId.value(), PageRequest.of(page, size))
                 .map(mapper::toDomain)
+                .collectList()
+                .block();
+    }
+
+    @Override
+    public List<ApiKeyPointsFlow> aggregateFlowByApiKey(TenantId tenantId) {
+        String sql = """
+                SELECT (metadata ->> 'api_key_id')::uuid AS api_key_id,
+                       COALESCE(SUM(amount) FILTER (WHERE type = 'CREDIT'), 0) AS credited,
+                       COALESCE(SUM(amount) FILTER (WHERE type = 'DEBIT'), 0) AS debited
+                FROM points_transactions
+                WHERE tenant_id = :tenantId
+                  AND metadata ->> 'api_key_id' IS NOT NULL
+                GROUP BY 1
+                """;
+        return template.getDatabaseClient()
+                .sql(sql)
+                .bind("tenantId", tenantId.value())
+                .map((row, meta) -> new ApiKeyPointsFlow(
+                        row.get("api_key_id", UUID.class),
+                        row.get("credited", Long.class),
+                        row.get("debited", Long.class)))
+                .all()
                 .collectList()
                 .block();
     }

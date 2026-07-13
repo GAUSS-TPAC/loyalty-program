@@ -12,14 +12,20 @@
     "passwordLabel": "Mot de passe",
     "passwordPlaceholder": "••••••••",
     "emailLabel": "Adresse email",
-    "emailPlaceholder": "jean.dupont@example.com"
+    "emailPlaceholder": "jean.dupont@example.com",
+    "credentialsTab": "Email / Mot de passe",
+    "apiKeyTab": "Clé API",
+    "apiKeyTitle": "Accès développeur",
+    "apiKeyDescription": "Collez la clé API de votre tenant pour accéder au portail développeur.",
+    "apiKeyLabel": "Clé API",
+    "unlockPortal": "Déverrouiller le portail"
   },
   "Navigation": {
     "overview": "Vue d'ensemble",
     "rulesConfig": "Config des Règles",
     "establishment": "Établissement",
     "walletPolicy": "Politique du Portefeuille",
-    "membersDirectory": "Annuaire des Membres",
+    "membersDirectory": "Mes applications",
     "eventLogs": "Journaux d'Événements"
   },
   "Sidebar": {

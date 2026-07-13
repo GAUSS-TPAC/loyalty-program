@@ -7,5 +7,6 @@ public enum ConditionType {
     TIER_IS,
     TIME_WINDOW,
     MEMBER_ATTRIBUTE,
-    FIRST_EVENT
+    FIRST_EVENT,
+    RECENCY
 }

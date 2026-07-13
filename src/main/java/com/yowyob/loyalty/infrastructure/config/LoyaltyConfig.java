@@ -29,7 +29,9 @@ public class LoyaltyConfig {
                 new PointsBalanceEvaluator(),
                 new TierEvaluator(),
                 new TimeWindowEvaluator(),
-                new FirstEventEvaluator()
+                new FirstEventEvaluator(),
+                new MemberAttributeEvaluator(),
+                new RecencyEvaluator()
         );
     }
 
@@ -139,5 +141,21 @@ public class LoyaltyConfig {
     @Primary
     public GetMemberTierUseCase getMemberTierUseCase(LoyaltyDomainService loyaltyDomainService) {
         return loyaltyDomainService::getTier;
+    }
+
+    @Bean
+    @Primary
+    public AdjustMemberPointsUseCase adjustMemberPointsUseCase(LoyaltyDomainService loyaltyDomainService) {
+        return new AdjustMemberPointsUseCase() {
+            @Override
+            public PointsAccount creditPoints(TenantId tenantId, UserId memberId, long amount, String reason) {
+                return loyaltyDomainService.creditPoints(tenantId, memberId, amount, reason);
+            }
+
+            @Override
+            public PointsAccount debitPoints(TenantId tenantId, UserId memberId, long amount, String reason) {
+                return loyaltyDomainService.debitPoints(tenantId, memberId, amount, reason);
+            }
+        };
     }
 }

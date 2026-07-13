@@ -14,8 +14,16 @@ public record EvaluationContext(
         PointsAccount pointsAccount,
         MemberTier memberTier,
         Map<String, Counter> counters,
-        TierPolicy tierPolicy
+        TierPolicy tierPolicy,
+        Map<String, Counter> countersBeforeEvent
 ) {
+    // countersBeforeEvent = counter state prior to the pre-evaluation trigger stamping,
+    // needed by RECENCY to measure inactivity without seeing the current event itself.
+    public EvaluationContext(IncomingEvent event, PointsAccount pointsAccount, MemberTier memberTier,
+                             Map<String, Counter> counters, TierPolicy tierPolicy) {
+        this(event, pointsAccount, memberTier, counters, tierPolicy, counters);
+    }
+
     public Optional<Counter> getCounter(String key) {
         if (counters == null) return Optional.empty();
         return Optional.ofNullable(counters.get(key));
@@ -23,5 +31,10 @@ public record EvaluationContext(
 
     public long getCounterValue(String key) {
         return getCounter(key).map(Counter::value).orElse(0L);
+    }
+
+    public Optional<Counter> getCounterBeforeEvent(String key) {
+        if (countersBeforeEvent == null) return Optional.empty();
+        return Optional.ofNullable(countersBeforeEvent.get(key));
     }
 }
