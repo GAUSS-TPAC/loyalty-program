@@ -6,9 +6,15 @@ import com.yowyob.loyalty.domain.bonification.port.out.BonificationPort;
 import com.yowyob.loyalty.domain.loyalty.port.out.RewardGrantPort;
 import com.yowyob.loyalty.domain.shared.model.TenantId;
 import com.yowyob.loyalty.domain.shared.model.UserId;
-import org.springframework.stereotype.Component;
 
-@Component
+import java.util.UUID;
+
+/**
+ * Not Spring-managed: reward grants are now fulfilled internally via
+ * {@link com.yowyob.loyalty.infrastructure.reward.adapter.InternalRewardGrantAdapter}
+ * instead of the external BonusAPI partner. Kept in place, unused, in case the
+ * partner integration is revived later.
+ */
 public class BonificationRewardGrantAdapter implements RewardGrantPort {
 
     private final BonificationPort bonificationPort;
@@ -22,7 +28,8 @@ public class BonificationRewardGrantAdapter implements RewardGrantPort {
     }
 
     @Override
-    public void grantReward(TenantId tenantId, UserId memberId, String rewardId, double amount) {
+    public void grantReward(TenantId tenantId, UserId memberId, String rewardId, double amount,
+                             UUID sourceRuleId, String sourceEventKey) {
         if (amount <= 0) return;
         String clientLogin = memberId.value().toString();
         BonificationTransactionRequest request = BonificationTransactionRequest.credit(amount, clientLogin);

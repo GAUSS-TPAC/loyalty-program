@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter, Link } from "@/i18n/routing";
 import { usePathname } from "next/navigation";
-import { Terminal, Settings, LogOut, Code2, Cpu, Wallet, Users, LayoutDashboard, Menu, X, Zap, Gift, Tag, Megaphone, CreditCard, WifiOff, Key, Webhook, BookOpen } from "lucide-react";
+import { Terminal, Settings, LogOut, Code2, Cpu, Wallet, AppWindow, LayoutDashboard, Menu, X, Zap, Gift, Tag, Megaphone, CreditCard, WifiOff, Key, Webhook, BookOpen } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
@@ -16,7 +16,6 @@ const API_KEY_STORAGE_KEY = "loyalty_dev_api_key";
 export default function PortalLayout({ children }: { children: React.ReactNode }) {
   const [authToken, setAuthToken] = useState<string | null>(null);
   const [checked, setChecked] = useState(false);
-  const [apiKeyInput, setApiKeyInput] = useState("");
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
@@ -48,18 +47,19 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
   }, [isOnline]);
 
   useEffect(() => {
-    let token = sessionStorage.getItem(JWT_STORAGE_KEY) || sessionStorage.getItem(API_KEY_STORAGE_KEY);
-    if (!token && process.env.NODE_ENV === "development") {
-      // Dev-only bypass: the backend's dev profile doesn't validate the JWT at all
-      // (DevSecurityConfig permits every request), so login via Kernel Core isn't
-      // required to exercise the portal locally.
-      token = "dev-bypass";
-      sessionStorage.setItem(JWT_STORAGE_KEY, token);
-    }
+    const token = sessionStorage.getItem(JWT_STORAGE_KEY) || sessionStorage.getItem(API_KEY_STORAGE_KEY);
     // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time session read on mount
     setAuthToken(token);
     setChecked(true);
   }, []);
+
+  // Sans session (JWT ou clé API), le portail n'est pas accessible : retour à la
+  // landing page, point d'entrée du parcours d'onboarding (login / register).
+  useEffect(() => {
+    if (checked && !authToken) {
+      router.replace("/");
+    }
+  }, [checked, authToken, router]);
 
   // Close sidebar drawer on screen transitions or nav clicks
   useEffect(() => {
@@ -73,67 +73,14 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
     router.push("/");
   };
 
-  const handleUnlock = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!apiKeyInput.trim()) return;
-    sessionStorage.setItem(API_KEY_STORAGE_KEY, apiKeyInput.trim());
-    setAuthToken(apiKeyInput.trim());
-  };
-
-  if (!checked) return <div className="min-h-screen bg-background" />;
-
-  // Ni JWT (login email/mot de passe) ni clé API en session : on propose de coller
-  // directement la clé API du tenant (équivalent au JWT côté backend), avec un lien
-  // vers le login classique.
-  if (!authToken) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-6">
-        <form
-          onSubmit={handleUnlock}
-          className="w-full max-w-md bg-card border border-border rounded-xl shadow-sm p-8 space-y-5"
-        >
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg bg-secondary flex items-center justify-center border border-border">
-              <Cpu className="w-4.5 h-4.5 text-primary" />
-            </div>
-            <h1 className="font-semibold text-foreground">Connexion développeur</h1>
-          </div>
-          <p className="text-sm text-muted-foreground">
-            Collez la clé API de votre tenant pour accéder au portail.
-          </p>
-          <div className="space-y-1.5">
-            <label className="text-xs font-medium text-muted-foreground">Clé API</label>
-            <input
-              type="password"
-              value={apiKeyInput}
-              onChange={(e) => setApiKeyInput(e.target.value)}
-              placeholder="sk_live_..."
-              className="w-full px-3 py-2 text-sm rounded-md border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-            />
-          </div>
-          <button
-            type="submit"
-            className="w-full py-2.5 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-opacity"
-          >
-            Déverrouiller
-          </button>
-          <p className="text-xs text-center text-muted-foreground">
-            Vous êtes admin ?{" "}
-            <Link href="/" className="text-primary hover:underline">
-              Connectez-vous par email/mot de passe
-            </Link>
-          </p>
-        </form>
-      </div>
-    );
-  }
+  if (!checked || !authToken) return <div className="min-h-screen bg-background" />;
 
   const navItems = [
     { name: tNav("overview"), href: "/portal", exact: true, icon: LayoutDashboard },
     { name: tNav("rulesConfig"), href: "/portal/rules", icon: Code2 },
     { name: tNav("establishment"), href: "/portal/establishment", icon: Settings },
     { name: tNav("walletPolicy"), href: "/portal/wallet/config", icon: Wallet },
-    { name: tNav("membersDirectory"), href: "/portal/members", icon: Users },
+    { name: tNav("membersDirectory"), href: "/portal/members", icon: AppWindow },
     { name: "Événements", href: "/portal/events", icon: Zap },
     { name: "Bonification", href: "/portal/bonification", icon: Gift },
     { name: "Codes Promo", href: "/portal/promo", icon: Tag },

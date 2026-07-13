@@ -39,4 +39,14 @@ public class AdminLogsController {
                         .flatMapMany(Flux::fromIterable))
                 .map(PointsTransactionLogResponse::from);
     }
+
+    @GetMapping("/flow-by-api-key")
+    @Operation(summary = "Flux de points agrégé par clé API", description = "Total de points crédités et débités par les événements soumis avec chaque clé API du tenant.")
+    public Flux<com.yowyob.loyalty.domain.loyalty.model.points.ApiKeyPointsFlow> flowByApiKey() {
+        return TenantContextHolder.getTenantId()
+                .flatMapMany(tenantId -> Mono
+                        .fromCallable(() -> getPointsLedgerUseCase.getFlowByApiKey(tenantId))
+                        .subscribeOn(Schedulers.boundedElastic())
+                        .flatMapMany(Flux::fromIterable));
+    }
 }

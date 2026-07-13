@@ -217,26 +217,18 @@ export interface EventProcessingResponse {
     message: string;
 }
 
-export interface BonificationStatusResponse {
-    enabled: boolean;
-    connected: boolean;
-    baseUrl: string;
-    message: string;
+export interface AdjustPointsRequest {
+    amount: number;
+    debit: boolean;
+    reason: string;
 }
 
-export interface SubmitBonificationRequest {
-    amount: number;
-    clientLogin: string;
-    debit: boolean;
-}
-
-export interface BonificationTransactionResponse {
-    transactionId: string;
-    amount: number;
-    clientLogin: string;
-    debit: boolean;
-    status: string;
-    message: string;
+export interface AdjustPointsResponse {
+    availablePoints: number;
+    lifetimeEarned: number;
+    lifetimeSpent: number;
+    tierLevel: string;
+    tierMultiplier: number;
 }
 
 export interface HealthResponse {
@@ -391,17 +383,13 @@ export const eventsApi = {
         }),
 };
 
-// ─── API Bonification ────────────────────────────────────────────────────────
+// ─── API Bonification (ajustement interne des points) ───────────────────────
 
 export const bonificationApi = {
-    /** GET /api/v1/bonification/status — Statut de l'intégration */
-    getStatus: () =>
-        get<BonificationStatusResponse>("/api/v1/bonification/status"),
-
-    /** POST /api/v1/bonification/transactions — Soumettre une transaction de bonification */
-    submitTransaction: (data: SubmitBonificationRequest) =>
-        post<BonificationTransactionResponse>(
-            "/api/v1/bonification/transactions",
+    /** POST /api/v1/members/{id}/points/adjust — Crédit/débit manuel de points (admin) */
+    adjustPoints: (memberId: string, data: AdjustPointsRequest) =>
+        post<AdjustPointsResponse>(
+            `/api/v1/members/${memberId}/points/adjust`,
             data
         ),
 };
@@ -699,11 +687,13 @@ export interface TierPolicyRequest {
 export interface PointsTransactionLogResponse {
     id: string;
     pointsAccountId: string;
+    memberId: string | null;
     type: string;
     amount: number;
     balanceAfter: number;
     source: string;
     ruleId: string | null;
+    reason: string | null;
     createdAt: string;
 }
 
@@ -728,10 +718,22 @@ export const tierPolicyApi = {
 
 // ─── API Journal des transactions de points (Admin — Logs) ──────────────────
 
+export interface ApiKeyPointsFlowResponse {
+    apiKeyId: string;
+    credited: number;
+    debited: number;
+}
+
 export const adminLogsApi = {
     /** GET /api/v1/admin/points-transactions?page=&size= — Journal tenant-wide */
     listPointsTransactions: (page = 0, size = 20) =>
         get<PointsTransactionLogResponse[]>(
             `/api/v1/admin/points-transactions?page=${page}&size=${size}`
+        ),
+
+    /** GET /api/v1/admin/points-transactions/flow-by-api-key — Flux de points agrégé par clé API */
+    flowByApiKey: () =>
+        get<ApiKeyPointsFlowResponse[]>(
+            "/api/v1/admin/points-transactions/flow-by-api-key"
         ),
 };

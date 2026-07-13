@@ -4,6 +4,7 @@ import com.yowyob.loyalty.api.shared.dto.ProblemDetails;
 import com.yowyob.loyalty.domain.bonification.exception.BonificationException;
 import com.yowyob.loyalty.domain.campaign.exception.CampaignDomainException;
 import com.yowyob.loyalty.domain.campaign.exception.CampaignNotFoundException;
+import com.yowyob.loyalty.domain.loyalty.exception.LoyaltyDomainException;
 import com.yowyob.loyalty.domain.promo.exception.*;
 import com.yowyob.loyalty.domain.subscription.exception.*;
 
@@ -18,6 +19,7 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.bind.support.WebExchangeBindException;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
@@ -109,6 +111,21 @@ public class GlobalExceptionHandler {
         return Mono.just(ResponseEntity.status(code.getHttpStatus()).body(problemDetails));
     }
 
+    @ExceptionHandler(LoyaltyDomainException.class)
+    public Mono<ResponseEntity<ProblemDetails>> handleLoyaltyDomainException(LoyaltyDomainException ex, ServerWebExchange exchange) {
+        String requestId = extractRequestId(exchange);
+        ProblemDetails problemDetails = new ProblemDetails(
+                "https://loyalty.yowyob.com/errors/loyalty_rule_violation",
+                "LOYALTY_RULE_VIOLATION",
+                HttpStatus.UNPROCESSABLE_ENTITY.value(),
+                ex.getMessage(),
+                requestId,
+                Instant.now(),
+                ex.getDetails()
+        );
+        return Mono.just(ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(problemDetails));
+    }
+
     @ExceptionHandler(SubscriptionDomainException.class)
     public Mono<ResponseEntity<ProblemDetails>> handleSubscriptionDomainException(SubscriptionDomainException ex, ServerWebExchange exchange) {
         String requestId = extractRequestId(exchange);
@@ -124,6 +141,24 @@ public class GlobalExceptionHandler {
                 code.name(), code.getHttpStatus(), ex.getMessage(), requestId, Instant.now(), null
         );
         return Mono.just(ResponseEntity.status(code.getHttpStatus()).body(problemDetails));
+    }
+
+    @ExceptionHandler(ResponseStatusException.class)
+    public Mono<ResponseEntity<ProblemDetails>> handleResponseStatusException(ResponseStatusException ex, ServerWebExchange exchange) {
+        // Covers framework-level rejections (e.g. a @PathVariable UUID that fails to parse)
+        // which already carry their own HTTP status -- must not be downgraded to a 500 by
+        // the generic handler below.
+        String requestId = extractRequestId(exchange);
+        ProblemDetails problemDetails = new ProblemDetails(
+                "https://loyalty.yowyob.com/errors/bad_request",
+                "BAD_REQUEST",
+                ex.getStatusCode().value(),
+                ex.getReason() != null ? ex.getReason() : "Requête invalide",
+                requestId,
+                Instant.now(),
+                null
+        );
+        return Mono.just(ResponseEntity.status(ex.getStatusCode()).body(problemDetails));
     }
 
     @ExceptionHandler(Exception.class)
