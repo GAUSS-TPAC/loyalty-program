@@ -21,8 +21,8 @@ public record WalletPolicy(
 ) {
     public static WalletPolicy defaults() {
         return new WalletPolicy(
-            "Credits",
-            "CR",
+            "Franc CFA",
+            "XAF",
             BigDecimal.valueOf(1.0),
             null,
             null,
@@ -32,6 +32,26 @@ public record WalletPolicy(
             null,
             true,
             null
+        );
+    }
+
+    /**
+     * Retourne une copie de la politique avec une nouvelle correspondance points ↔ monnaie
+     * (nom/symbole de la monnaie de fidélité et taux de conversion), les limites restant inchangées.
+     */
+    public WalletPolicy withPointsConversion(String currencyName, String currencySymbol, BigDecimal exchangeRate) {
+        return new WalletPolicy(
+            currencyName,
+            currencySymbol,
+            exchangeRate,
+            dailySpendCap,
+            maxBalance,
+            maxTopupPerTransaction,
+            minWithdrawal,
+            withdrawalDelayHours,
+            otpThreshold,
+            kycRequiredForWithdrawal,
+            expiryDays
         );
     }
 

@@ -10,12 +10,14 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import {
     memberApi,
+    walletApi,
     rulesApi,
     systemApi,
     promoApi,
     campaignApi,
     subscriptionApi,
     apiKeyApi,
+    accessApi,
     webhookApi,
     adminMembersApi,
     tierPolicyApi,
@@ -23,6 +25,7 @@ import {
     platformApi,
     type PlatformTenantResponse,
     type WalletResponse,
+    type WalletPolicyResponse,
     type PointsAccountResponse,
     type MemberTierResponse,
     type PointsTransactionResponse,
@@ -41,6 +44,7 @@ import {
     type TierPolicyResponse,
     type PointsTransactionLogResponse,
     type ApiKeyPointsFlowResponse,
+    type AccessResponse,
 } from "@/lib/api";
 
 // ─── Générique ───────────────────────────────────────────────────────────────
@@ -90,6 +94,11 @@ function useQuery<T>(fetchFn: () => Promise<T>, deps: unknown[] = []): UseQueryR
 }
 
 // ─── Hooks Wallet ─────────────────────────────────────────────────────────────
+
+/** Retourne la politique wallet du tenant (correspondance des points, limites) */
+export function useWalletPolicy(): UseQueryResult<WalletPolicyResponse> {
+    return useQuery(() => walletApi.getPolicy(), []);
+}
 
 /** Retourne le wallet d'un membre donné (portail admin : pas de wallet "personnel") */
 export function useMemberWallet(
@@ -194,7 +203,12 @@ export function useMyInvoices(): UseQueryResult<InvoiceResponse[]> {
 
 // ─── Hooks Developer Portal ───────────────────────────────────────────────────
 
-/** Retourne les clés API du tenant */
+/** Indique si l'utilisateur courant est admin du tenant (voit tout) ou développeur (scope: ses propres clés) */
+export function useAccess(): UseQueryResult<AccessResponse> {
+    return useQuery(() => accessApi.me());
+}
+
+/** Retourne les clés API accessibles à l'utilisateur courant (toutes pour un admin, les siennes pour un développeur) */
 export function useApiKeys(): UseQueryResult<ApiKeyResponse[]> {
     return useQuery(() => apiKeyApi.list());
 }

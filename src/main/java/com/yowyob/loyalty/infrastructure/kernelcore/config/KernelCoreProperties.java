@@ -15,6 +15,8 @@ public class KernelCoreProperties {
     private int readTimeoutMs = 5000;
     /** Tenant plateforme KernelCore (X-Tenant-Id) sous lequel les admins de ce déploiement se connectent. */
     private String tenantId;
+    /** Organisation KernelCore cible pour l'inscription publique (POST /api/auth/discover-sign-up-contexts). */
+    private String organizationCode;
 
     public String resolvedTokenEndpoint() {
         if (tokenEndpoint != null && !tokenEndpoint.isBlank()) {
@@ -48,4 +50,7 @@ public class KernelCoreProperties {
 
     public String getTenantId() { return tenantId; }
     public void setTenantId(String tenantId) { this.tenantId = tenantId; }
+
+    public String getOrganizationCode() { return organizationCode; }
+    public void setOrganizationCode(String organizationCode) { this.organizationCode = organizationCode; }
 }

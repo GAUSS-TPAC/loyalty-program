@@ -10,4 +10,5 @@ import java.util.UUID;
 public interface ApiKeyR2dbcRepository extends R2dbcRepository<ApiKeyEntity, UUID> {
     Mono<ApiKeyEntity> findByKeyHashAndActiveTrue(String keyHash);
     Flux<ApiKeyEntity> findByTenantId(UUID tenantId);
+    Flux<ApiKeyEntity> findByTenantIdAndOwnerId(UUID tenantId, UUID ownerId);
 }

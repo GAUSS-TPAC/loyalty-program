@@ -16,5 +16,6 @@ public record PlatformTenantSummary(
         String planCode,
         String planName,
         BigDecimal totalPaidAmount,
-        String currency
+        String currency,
+        long totalPointsGenerated
 ) {}

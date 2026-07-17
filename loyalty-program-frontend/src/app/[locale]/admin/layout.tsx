@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Link } from "@/i18n/routing";
-import { Shield, LogOut, Building2 } from "lucide-react";
+import { Shield, LogOut, Building2, Eye, EyeOff } from "lucide-react";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 
 const PLATFORM_KEY_STORAGE_KEY = "loyalty_platform_admin_key";
@@ -11,6 +11,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [platformKey, setPlatformKey] = useState<string | null>(null);
   const [keyInput, setKeyInput] = useState("");
   const [checked, setChecked] = useState(false);
+  const [showKey, setShowKey] = useState(false);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time session read on mount
@@ -51,13 +52,24 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </p>
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-muted-foreground">Secret plateforme</label>
-            <input
-              type="password"
-              value={keyInput}
-              onChange={(e) => setKeyInput(e.target.value)}
-              placeholder="X-Platform-Admin-Key"
-              className="w-full px-3 py-2 text-sm rounded-md border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-            />
+            <div className="relative">
+              <input
+                type={showKey ? "text" : "password"}
+                value={keyInput}
+                onChange={(e) => setKeyInput(e.target.value)}
+                placeholder="X-Platform-Admin-Key"
+                className="w-full px-3 py-2 pr-10 text-sm rounded-md border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+              />
+              <button
+                type="button"
+                onClick={() => setShowKey((v) => !v)}
+                tabIndex={-1}
+                aria-label={showKey ? "Masquer le secret" : "Afficher le secret"}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground/60 hover:text-foreground transition-colors"
+              >
+                {showKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
           </div>
           <button
             type="submit"

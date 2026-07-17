@@ -11,9 +11,50 @@ import {
   Key,
   Search,
   Boxes,
+  BarChart3,
+  TrendingUp,
 } from "lucide-react";
+import {
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+} from "recharts";
 import { useApiKeys, useApiKeyPointsFlow } from "@/hooks/useBackend";
 import { apiKeyApi, type ApiKeyMode, type ApiKeyResponse } from "@/lib/api";
+
+function PointsFlowTooltip({ active, payload, label }: { active?: boolean; label?: string; payload?: { dataKey: string; value: number }[] }) {
+  if (!active || !payload?.length) return null;
+  return (
+    <div className="bg-card border border-border rounded-lg shadow-md px-3 py-2 text-xs space-y-1">
+      <p className="font-semibold text-foreground">{label}</p>
+      {payload.map((p) => (
+        <p key={p.dataKey} className={p.dataKey === "credited" ? "text-emerald-600" : "text-rose-600"}>
+          {p.dataKey === "credited" ? "Crédité" : "Débité"} :{" "}
+          <span className="font-mono font-semibold">{p.value.toLocaleString()}</span>
+        </p>
+      ))}
+    </div>
+  );
+}
+
+function GrowthTooltip({ active, payload, label }: { active?: boolean; label?: string; payload?: { value: number }[] }) {
+  if (!active || !payload?.length) return null;
+  return (
+    <div className="bg-card border border-border rounded-lg shadow-md px-3 py-2 text-xs">
+      <p className="font-semibold text-foreground mb-0.5">{label}</p>
+      <p className="text-primary">
+        <span className="font-mono font-semibold">{payload[0].value}</span> application{payload[0].value > 1 ? "s" : ""} au total
+      </p>
+    </div>
+  );
+}
 
 // Une "application" = l'ensemble des clés API partageant le même nom
 // (le backend n'a pas d'entité application ; le nom de clé sert d'identifiant d'app).
@@ -73,6 +114,39 @@ export default function ApplicationsPage() {
   );
 
   const activeKeysCount = keys?.filter((k) => k.active).length ?? 0;
+
+  // Flux de points par application (dev) : agrège les clés TEST+LIVE d'une même app
+  const pointsFlowChartData = useMemo(() => {
+    return applications
+      .map((app) => {
+        const totals = app.keys.reduce(
+          (acc, k) => {
+            const flow = flowByKeyId.get(k.id);
+            acc.credited += flow?.credited ?? 0;
+            acc.debited += flow?.debited ?? 0;
+            return acc;
+          },
+          { credited: 0, debited: 0 }
+        );
+        return { name: app.name, ...totals };
+      })
+      .filter((d) => d.credited > 0 || d.debited > 0)
+      .sort((a, b) => b.credited + b.debited - (a.credited + a.debited))
+      .slice(0, 10);
+  }, [applications, flowByKeyId]);
+
+  // Flux d'abonnement à l'API : nombre cumulé d'applications créées dans le temps
+  const growthChartData = useMemo(() => {
+    const sorted = [...applications].sort((a, b) => (a.createdAt < b.createdAt ? -1 : 1));
+    let cumulative = 0;
+    return sorted.map((app) => {
+      cumulative += 1;
+      return {
+        date: new Date(app.createdAt).toLocaleDateString("fr-FR", { day: "2-digit", month: "short" }),
+        total: cumulative,
+      };
+    });
+  }, [applications]);
 
   const handleCreateApp = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -185,6 +259,93 @@ export default function ApplicationsPage() {
           </div>
         </div>
       </div>
+
+      {/* Graphiques : flux de points par dev + croissance des inscriptions API */}
+      {applications.length > 0 && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {pointsFlowChartData.length > 0 && (
+            <div className="border border-border bg-card rounded-2xl shadow-sm overflow-hidden">
+              <div className="bg-secondary/30 px-6 py-4 border-b border-border flex items-center gap-2.5">
+                <BarChart3 className="w-4 h-4 text-primary" />
+                <h3 className="font-bold text-sm text-foreground">
+                  Flux de points par application {pointsFlowChartData.length > 1 ? "(top 10)" : ""}
+                </h3>
+              </div>
+              <div className="p-6" style={{ height: 280 }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={pointsFlowChartData} margin={{ top: 4, right: 8, left: 0, bottom: 4 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+                    <XAxis
+                      dataKey="name"
+                      tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
+                      axisLine={{ stroke: "var(--border)" }}
+                      tickLine={false}
+                    />
+                    <YAxis
+                      tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
+                      axisLine={false}
+                      tickLine={false}
+                      width={44}
+                    />
+                    <Tooltip content={<PointsFlowTooltip />} cursor={{ fill: "var(--secondary)" }} />
+                    <Legend
+                      formatter={(value) => (value === "credited" ? "Crédité" : "Débité")}
+                      wrapperStyle={{ fontSize: 11, color: "var(--muted-foreground)" }}
+                    />
+                    <Bar dataKey="credited" fill="#059669" radius={[4, 4, 0, 0]} maxBarSize={28} />
+                    <Bar dataKey="debited" fill="#e11d48" radius={[4, 4, 0, 0]} maxBarSize={28} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          )}
+
+          {growthChartData.length > 0 && (
+            <div className="border border-border bg-card rounded-2xl shadow-sm overflow-hidden">
+              <div className="bg-secondary/30 px-6 py-4 border-b border-border flex items-center gap-2.5">
+                <TrendingUp className="w-4 h-4 text-primary" />
+                <h3 className="font-bold text-sm text-foreground">
+                  Croissance des inscriptions à l&apos;API
+                </h3>
+              </div>
+              <div className="p-6" style={{ height: 280 }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={growthChartData} margin={{ top: 4, right: 8, left: 0, bottom: 4 }}>
+                    <defs>
+                      <linearGradient id="growthFill" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="var(--primary)" stopOpacity={0.35} />
+                        <stop offset="100%" stopColor="var(--primary)" stopOpacity={0.02} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+                    <XAxis
+                      dataKey="date"
+                      tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
+                      axisLine={{ stroke: "var(--border)" }}
+                      tickLine={false}
+                    />
+                    <YAxis
+                      allowDecimals={false}
+                      tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
+                      axisLine={false}
+                      tickLine={false}
+                      width={32}
+                    />
+                    <Tooltip content={<GrowthTooltip />} cursor={{ stroke: "var(--primary)", strokeWidth: 1 }} />
+                    <Area
+                      type="monotone"
+                      dataKey="total"
+                      stroke="var(--primary)"
+                      strokeWidth={2}
+                      fill="url(#growthFill)"
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Clés brutes révélées (une seule fois) */}
       {revealedKeys && (

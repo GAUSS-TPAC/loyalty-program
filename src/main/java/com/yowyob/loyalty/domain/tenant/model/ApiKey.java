@@ -15,17 +15,18 @@ public record ApiKey(
         ApiKeyMode mode,
         boolean active,
         Instant createdAt,
-        Instant lastUsedAt
+        Instant lastUsedAt,
+        UUID ownerId
 ) {
-    public static ApiKey create(TenantId tenantId, String name, String keyHash, String keyPrefix, ApiKeyMode mode) {
-        return new ApiKey(UUID.randomUUID(), tenantId, name, keyHash, keyPrefix, mode, true, Instant.now(), null);
+    public static ApiKey create(TenantId tenantId, String name, String keyHash, String keyPrefix, ApiKeyMode mode, UUID ownerId) {
+        return new ApiKey(UUID.randomUUID(), tenantId, name, keyHash, keyPrefix, mode, true, Instant.now(), null, ownerId);
     }
 
     public ApiKey markUsed() {
-        return new ApiKey(id, tenantId, name, keyHash, keyPrefix, mode, active, createdAt, Instant.now());
+        return new ApiKey(id, tenantId, name, keyHash, keyPrefix, mode, active, createdAt, Instant.now(), ownerId);
     }
 
     public ApiKey revoke() {
-        return new ApiKey(id, tenantId, name, keyHash, keyPrefix, mode, false, createdAt, lastUsedAt);
+        return new ApiKey(id, tenantId, name, keyHash, keyPrefix, mode, false, createdAt, lastUsedAt, ownerId);
     }
 }

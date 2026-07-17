@@ -2,13 +2,17 @@ package com.yowyob.loyalty.api.auth;
 
 import com.yowyob.loyalty.api.auth.dto.LoginRequest;
 import com.yowyob.loyalty.api.auth.dto.LoginResponse;
+import com.yowyob.loyalty.api.auth.dto.RegisterRequest;
+import com.yowyob.loyalty.api.auth.dto.RegisterResponse;
 import com.yowyob.loyalty.application.auth.AuthService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import reactor.core.publisher.Mono;
 
@@ -27,5 +31,13 @@ public class AuthController {
     @Operation(summary = "Connexion admin", description = "Authentifie un administrateur par email/mot de passe via KernelCore et retourne un JWT ainsi que l'organisation active (à renvoyer via X-Organization-Id).")
     public Mono<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
         return authService.login(request.email(), request.password(), request.organizationId()).map(LoginResponse::new);
+    }
+
+    @PostMapping("/register")
+    @ResponseStatus(HttpStatus.CREATED)
+    @Operation(summary = "Inscription admin", description = "Crée un compte KernelCore pour l'organisation de ce déploiement. Le compte reste EMAIL_VERIFICATION_REQUIRED jusqu'à confirmation de l'email (le login échouera avant ça).")
+    public Mono<RegisterResponse> register(@Valid @RequestBody RegisterRequest request) {
+        return authService.register(request.firstName(), request.lastName(), request.email(), request.password())
+                .map(RegisterResponse::new);
     }
 }

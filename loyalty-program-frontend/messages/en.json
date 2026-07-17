@@ -18,7 +18,9 @@
     "apiKeyTitle": "Developer Access",
     "apiKeyDescription": "Paste your tenant API key to unlock the developer portal.",
     "apiKeyLabel": "API Key",
-    "unlockPortal": "Unlock portal"
+    "unlockPortal": "Unlock portal",
+    "organizationLabel": "Organization",
+    "organizationHelp": "Your account has access to several organizations. Choose the one to sign in to, then submit again."
   },
   "Navigation": {
     "overview": "Overview",
@@ -235,6 +237,17 @@
     "dashboardDescription": "Overview of your integration: API keys, webhooks and recent activity.",
     "apiKeysTitle": "API Keys",
     "apiKeysDescription": "Create and manage the keys your systems use to authenticate against this API (X-Api-Key header).",
+    "myApiKeysTitle": "My API Keys",
+    "myApiKeysDescription": "Create and manage the keys your apps use to authenticate against this API (X-Api-Key header). Only keys you created are shown here.",
+    "apiKeysOwnerColumn": "Owner",
+    "inviteDeveloperTitle": "Invite a Developer",
+    "inviteDeveloperDescription": "Create a developer account on this tenant. They'll receive an email to set their password.",
+    "firstNameLabel": "First name",
+    "lastNameLabel": "Last name",
+    "emailLabel": "Email",
+    "inviteButton": "Send invite",
+    "inviteSuccess": "Invitation sent to {email}. They'll receive an email to set their password.",
+    "adminOnlyNotice": "Only tenant admins can invite developers.",
     "webhooksTitle": "Webhooks",
     "webhooksDescription": "Register callback URLs to receive real-time notifications when events happen in this loyalty program.",
     "logsTitle": "Delivery Logs",
@@ -317,6 +330,9 @@
     "acceptTerms": "I accept the terms of service and privacy policy of Loyalty Engine.",
     "previous": "Previous",
     "openAccount": "Open my account",
-    "loginInstead": "Already have an account? Login here"
+    "loginInstead": "Already have an account? Login here",
+    "checkEmailTitle": "Account created!",
+    "checkEmailMessage": "Check your inbox ({email}) to confirm your address before signing in.",
+    "backToLogin": "Go to login"
   }
 }

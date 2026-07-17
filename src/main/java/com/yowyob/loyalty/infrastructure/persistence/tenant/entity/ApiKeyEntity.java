@@ -34,6 +34,9 @@ public class ApiKeyEntity {
     @Column("last_used_at")
     private Instant lastUsedAt;
 
+    @Column("owner_id")
+    private UUID ownerId;
+
     public UUID getId() { return id; }
     public void setId(UUID id) { this.id = id; }
     public UUID getTenantId() { return tenantId; }
@@ -52,4 +55,6 @@ public class ApiKeyEntity {
     public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
     public Instant getLastUsedAt() { return lastUsedAt; }
     public void setLastUsedAt(Instant lastUsedAt) { this.lastUsedAt = lastUsedAt; }
+    public UUID getOwnerId() { return ownerId; }
+    public void setOwnerId(UUID ownerId) { this.ownerId = ownerId; }
 }

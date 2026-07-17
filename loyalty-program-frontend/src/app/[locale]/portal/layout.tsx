@@ -3,11 +3,12 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter, Link } from "@/i18n/routing";
 import { usePathname } from "next/navigation";
-import { Terminal, Settings, LogOut, Code2, Cpu, Wallet, AppWindow, LayoutDashboard, Menu, X, Zap, Gift, Tag, Megaphone, CreditCard, WifiOff, Key, Webhook, BookOpen } from "lucide-react";
+import { Terminal, Settings, LogOut, Code2, Cpu, Wallet, AppWindow, LayoutDashboard, Menu, X, Zap, Gift, Tag, Megaphone, CreditCard, WifiOff, Key, Webhook, BookOpen, UserPlus } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
+import { useAccess } from "@/hooks/useBackend";
 import { flushQueue } from "@/lib/offlineQueue";
 
 const JWT_STORAGE_KEY = "loyalty_jwt_token";
@@ -24,6 +25,7 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
   const tHeader = useTranslations("Header");
   const isOnline = useOnlineStatus();
   const wasOnline = useRef(isOnline);
+  const { data: access } = useAccess();
 
   useEffect(() => {
     const trySync = async () => {
@@ -91,6 +93,9 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
     { name: tNav("eventLogs"), href: "/portal/logs", icon: Terminal },
     { name: "Livraisons Webhook", href: "/portal/webhook-logs", icon: Terminal },
     { name: "Documentation", href: "/portal/docs", icon: BookOpen },
+    ...(access?.tenantAdmin
+      ? [{ name: "Développeurs", href: "/portal/developers", icon: UserPlus }]
+      : []),
   ];
 
   return (

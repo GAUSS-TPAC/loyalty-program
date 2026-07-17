@@ -7,17 +7,23 @@ import com.yowyob.loyalty.domain.tenant.model.TenantConfig;
 import com.yowyob.loyalty.domain.tenant.model.enums.TenantPlan;
 import com.yowyob.loyalty.domain.tenant.model.enums.TenantStatus;
 import com.yowyob.loyalty.infrastructure.kernelcore.dto.KernelApiResponse;
+import com.yowyob.loyalty.infrastructure.kernelcore.dto.KernelCreateOrganizationRequestDto;
 import com.yowyob.loyalty.infrastructure.kernelcore.dto.KernelOrganizationDto;
 import com.yowyob.loyalty.infrastructure.redis.adapter.TenantCacheAdapter;
+import com.yowyob.loyalty.shared.exception.KernelCoreUnavailableException;
+import com.yowyob.loyalty.shared.exception.RegistrationFailedException;
 import com.yowyob.loyalty.shared.exception.TenantNotFoundException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
+
+import java.util.UUID;
 
 /**
  * Résout et valide un tenant via Kernel Core.
@@ -65,6 +71,35 @@ public class KernelCoreTenantAdapter {
                 .flatMap(tenant -> tenantCache.cache(tenant).thenReturn(tenant))
                 .doOnSuccess(t -> log.debug("Tenant résolu depuis Kernel Core: {}", tenantId))
                 .doOnError(e -> log.warn("Échec résolution Kernel Core pour {}: {}", tenantId, e.getMessage()));
+    }
+
+    /**
+     * Crée une organisation KernelCore pour l'acteur porteur du Bearer token, via
+     * POST /api/organizations. Utilisée pour auto-provisionner un espace de travail au
+     * premier login d'un compte inscrit en self-service (voir AuthService.register/login) :
+     * l'inscription publique (sign-up) ne crée qu'un compte, jamais d'organisation.
+     */
+    public Mono<KernelOrganizationDto> createOrganization(String bearerToken, UUID businessActorId,
+                                                           String code, String legalName, String displayName) {
+        return kernelCoreWebClient.post()
+                .uri("/api/organizations")
+                .headers(headers -> headers.set(HttpHeaders.AUTHORIZATION, "Bearer " + bearerToken))
+                .bodyValue(new KernelCreateOrganizationRequestDto(businessActorId, code, legalName, displayName, "PRIVATE_COMPANY"))
+                .retrieve()
+                .onStatus(HttpStatusCode::is4xxClientError,
+                        resp -> resp.bodyToMono(String.class).defaultIfEmpty("")
+                                .flatMap(body -> Mono.error(new RegistrationFailedException(
+                                        "Création de l'organisation refusée: " + body))))
+                .onStatus(HttpStatusCode::is5xxServerError,
+                        resp -> Mono.error(new KernelCoreUnavailableException("KernelCore indisponible pour la création de l'organisation")))
+                .bodyToMono(ORG_TYPE)
+                .flatMap(response -> {
+                    if (!response.isSuccess() || response.getData() == null) {
+                        return Mono.error(new KernelCoreUnavailableException("Réponse KernelCore invalide pour POST /api/organizations"));
+                    }
+                    return Mono.just(response.getData());
+                })
+                .doOnError(e -> log.warn("Échec création d'organisation KernelCore: {}", e.getMessage()));
     }
 
     private Mono<KernelOrganizationDto> fetchOrganization(TenantId tenantId, String token) {

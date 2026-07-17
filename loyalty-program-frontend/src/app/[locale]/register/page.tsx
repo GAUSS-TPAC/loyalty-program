@@ -1,17 +1,17 @@
 "use client";
 
 import { useState } from "react";
-import { Link, useRouter } from "@/i18n/routing";
-import { Gift, AlertTriangle, Mail } from "lucide-react";
+import { Link } from "@/i18n/routing";
+import { Gift, AlertTriangle, Mail, Eye, EyeOff, MailCheck } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { LandingHeader } from "@/components/LandingHeader";
+import { authApi, ApiError } from "@/lib/api";
 
 export default function RegisterPage() {
   const [formData, setFormData] = useState({
     email: "",
     lastName: "",
     firstName: "",
-    username: "",
     password: "",
     confirmPassword: "",
     acceptTerms: true,
@@ -19,8 +19,12 @@ export default function RegisterPage() {
 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  // Le compte KernelCore reste EMAIL_VERIFICATION_REQUIRED après l'inscription : on ne
+  // redirige pas vers /login (qui échouerait), on affiche l'instruction de vérification.
+  const [registeredEmail, setRegisteredEmail] = useState<string | null>(null);
 
-  const router = useRouter();
   const t = useTranslations("Register");
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -45,8 +49,8 @@ export default function RegisterPage() {
       setError("Name fields are required");
       return;
     }
-    if (!formData.username.trim() || !formData.password.trim()) {
-      setError("Username and Password are required");
+    if (!formData.password.trim()) {
+      setError("Password is required");
       return;
     }
     if (formData.password !== formData.confirmPassword) {
@@ -60,12 +64,15 @@ export default function RegisterPage() {
 
     setIsLoading(true);
     try {
-      // Fake API Call for UI implementation
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-      // For now, redirect to login
-      router.push("/login");
+      const result = await authApi.register({
+        firstName: formData.firstName.trim(),
+        lastName: formData.lastName.trim(),
+        email: formData.email.trim(),
+        password: formData.password,
+      });
+      setRegisteredEmail(result.email);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Registration failed");
+      setError(err instanceof ApiError ? err.message : "Registration failed");
     } finally {
       setIsLoading(false);
     }
@@ -87,9 +94,26 @@ export default function RegisterPage() {
               <Gift className="w-8 h-8 text-primary" />
             </div>
           </Link>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">{t("title")}</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">
+            {registeredEmail ? t("checkEmailTitle") : t("title")}
+          </h1>
         </div>
 
+        {registeredEmail ? (
+          <div className="space-y-6 pt-2">
+            <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 px-4 py-4 rounded-lg text-sm font-medium flex items-start gap-3">
+              <MailCheck className="w-5 h-5 flex-shrink-0 mt-0.5" />
+              <span>{t("checkEmailMessage", { email: registeredEmail })}</span>
+            </div>
+            <Link
+              href="/login"
+              className="flex w-full items-center justify-center whitespace-nowrap rounded-lg text-sm font-medium transition-all shadow-md bg-primary text-primary-foreground hover:bg-primary/90 h-12 px-4 active:scale-[0.98]"
+            >
+              {t("backToLogin")}
+            </Link>
+          </div>
+        ) : (
+        <>
         {error && (
           <div className="bg-destructive/10 border border-destructive/20 text-destructive px-4 py-3 rounded-lg text-sm font-medium flex items-center gap-2">
             <AlertTriangle className="w-5 h-5 flex-shrink-0" />
@@ -135,40 +159,44 @@ export default function RegisterPage() {
             </div>
           </div>
 
-          <div className="space-y-1">
-            <input
-              type="text"
-              name="username"
-              placeholder={t("username")}
-              value={formData.username}
-              onChange={handleChange}
-              className="flex h-12 w-full rounded-lg border border-border bg-background px-4 py-2 text-sm shadow-sm transition-all placeholder:text-muted-foreground/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20 focus-visible:border-primary"
-            />
-            <p className="text-[11px] text-muted-foreground/80 pl-1 pt-1 leading-tight">
-              {t("usernameHint")}
-            </p>
-          </div>
-
           <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
+            <div className="space-y-2 relative">
               <input
-                type="password"
+                type={showPassword ? "text" : "password"}
                 name="password"
                 placeholder={t("password")}
                 value={formData.password}
                 onChange={handleChange}
-                className="flex h-12 w-full rounded-lg border border-border bg-background px-4 py-2 text-sm shadow-sm transition-all placeholder:text-muted-foreground/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20 focus-visible:border-primary"
+                className="flex h-12 w-full rounded-lg border border-border bg-background px-4 pr-11 py-2 text-sm shadow-sm transition-all placeholder:text-muted-foreground/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20 focus-visible:border-primary"
               />
+              <button
+                type="button"
+                onClick={() => setShowPassword((v) => !v)}
+                tabIndex={-1}
+                aria-label={showPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
+                className="absolute right-3 top-3.5 text-muted-foreground/60 hover:text-foreground transition-colors"
+              >
+                {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+              </button>
             </div>
-            <div className="space-y-2">
+            <div className="space-y-2 relative">
               <input
-                type="password"
+                type={showConfirmPassword ? "text" : "password"}
                 name="confirmPassword"
                 placeholder={t("confirmPassword")}
                 value={formData.confirmPassword}
                 onChange={handleChange}
-                className="flex h-12 w-full rounded-lg border border-border bg-background px-4 py-2 text-sm shadow-sm transition-all placeholder:text-muted-foreground/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20 focus-visible:border-primary"
+                className="flex h-12 w-full rounded-lg border border-border bg-background px-4 pr-11 py-2 text-sm shadow-sm transition-all placeholder:text-muted-foreground/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20 focus-visible:border-primary"
               />
+              <button
+                type="button"
+                onClick={() => setShowConfirmPassword((v) => !v)}
+                tabIndex={-1}
+                aria-label={showConfirmPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
+                className="absolute right-3 top-3.5 text-muted-foreground/60 hover:text-foreground transition-colors"
+              >
+                {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+              </button>
             </div>
           </div>
 
@@ -203,6 +231,8 @@ export default function RegisterPage() {
             {t("loginInstead")}
           </Link>
         </div>
+        </>
+        )}
       </div>
     </main>
   );

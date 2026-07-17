@@ -3,12 +3,14 @@
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { Key, Plus, Trash2, Copy, Check, AlertTriangle } from "lucide-react";
-import { useApiKeys } from "@/hooks/useBackend";
+import { useApiKeys, useAccess } from "@/hooks/useBackend";
 import { apiKeyApi, type ApiKeyMode } from "@/lib/api";
 
 export default function ApiKeysPage() {
   const t = useTranslations("Developer");
   const { data: keys, isLoading, error, refetch } = useApiKeys();
+  const { data: access } = useAccess();
+  const isAdmin = access?.tenantAdmin ?? false;
   const [name, setName] = useState("");
   const [mode, setMode] = useState<ApiKeyMode>("LIVE");
   const [creating, setCreating] = useState(false);
@@ -46,8 +48,12 @@ export default function ApiKeysPage() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-semibold text-foreground">{t("apiKeysTitle")}</h1>
-        <p className="text-sm text-muted-foreground mt-1">{t("apiKeysDescription")}</p>
+        <h1 className="text-2xl font-semibold text-foreground">
+          {isAdmin ? t("apiKeysTitle") : t("myApiKeysTitle")}
+        </h1>
+        <p className="text-sm text-muted-foreground mt-1">
+          {isAdmin ? t("apiKeysDescription") : t("myApiKeysDescription")}
+        </p>
       </div>
 
       {revealedKey && (
@@ -136,6 +142,7 @@ export default function ApiKeysPage() {
                 <th className="p-4 font-medium">Mode</th>
                 <th className="p-4 font-medium">Status</th>
                 <th className="p-4 font-medium">Last used</th>
+                {isAdmin && <th className="p-4 font-medium">{t("apiKeysOwnerColumn")}</th>}
                 <th className="p-4"></th>
               </tr>
             </thead>
@@ -169,6 +176,11 @@ export default function ApiKeysPage() {
                   <td className="p-4 text-muted-foreground text-xs">
                     {k.lastUsedAt ? new Date(k.lastUsedAt).toLocaleString() : "Never"}
                   </td>
+                  {isAdmin && (
+                    <td className="p-4 text-muted-foreground text-xs font-mono">
+                      {k.ownerId ?? "—"}
+                    </td>
+                  )}
                   <td className="p-4 text-right">
                     {k.active && (
                       <button

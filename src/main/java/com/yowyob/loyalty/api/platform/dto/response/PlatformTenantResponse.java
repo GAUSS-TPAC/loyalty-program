@@ -15,7 +15,8 @@ public record PlatformTenantResponse(
         Instant trialEndDate,
         Instant currentPeriodEnd,
         BigDecimal totalPaidAmount,
-        String currency
+        String currency,
+        long totalPointsGenerated
 ) {
     public static PlatformTenantResponse from(PlatformTenantSummary s) {
         return new PlatformTenantResponse(
@@ -27,7 +28,8 @@ public record PlatformTenantResponse(
                 s.subscription().trialEndDate(),
                 s.subscription().currentPeriodEnd(),
                 s.totalPaidAmount(),
-                s.currency()
+                s.currency(),
+                s.totalPointsGenerated()
         );
     }
 }

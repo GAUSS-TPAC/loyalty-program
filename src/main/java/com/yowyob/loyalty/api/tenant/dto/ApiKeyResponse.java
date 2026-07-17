@@ -14,15 +14,16 @@ public record ApiKeyResponse(
         boolean active,
         Instant createdAt,
         Instant lastUsedAt,
-        String rawKey
+        String rawKey,
+        UUID ownerId
 ) {
     public static ApiKeyResponse from(ApiKey key) {
         return new ApiKeyResponse(key.id(), key.name(), key.keyPrefix() + "...", key.mode(),
-                key.active(), key.createdAt(), key.lastUsedAt(), null);
+                key.active(), key.createdAt(), key.lastUsedAt(), null, key.ownerId());
     }
 
     public static ApiKeyResponse fromCreated(ApiKey key, String rawKey) {
         return new ApiKeyResponse(key.id(), key.name(), key.keyPrefix() + "...", key.mode(),
-                key.active(), key.createdAt(), key.lastUsedAt(), rawKey);
+                key.active(), key.createdAt(), key.lastUsedAt(), rawKey, key.ownerId());
     }
 }

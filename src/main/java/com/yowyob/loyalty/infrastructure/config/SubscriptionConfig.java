@@ -1,6 +1,7 @@
 package com.yowyob.loyalty.infrastructure.config;
 
 import com.yowyob.loyalty.application.subscription.scheduler.SubscriptionRenewalScheduler;
+import com.yowyob.loyalty.domain.loyalty.port.out.PointsAccountRepository;
 import com.yowyob.loyalty.domain.shared.model.TenantId;
 import com.yowyob.loyalty.domain.subscription.model.BillingCycle;
 import com.yowyob.loyalty.domain.subscription.model.InvoiceRecord;
@@ -31,8 +32,10 @@ public class SubscriptionConfig {
             SubscriptionPlanRepository planRepository,
             TenantSubscriptionRepository subscriptionRepository,
             InvoiceRepository invoiceRepository,
-            TenantDirectoryPort tenantDirectoryPort) {
-        return new SubscriptionDomainService(planRepository, subscriptionRepository, invoiceRepository, tenantDirectoryPort);
+            TenantDirectoryPort tenantDirectoryPort,
+            PointsAccountRepository pointsAccountRepository) {
+        return new SubscriptionDomainService(planRepository, subscriptionRepository, invoiceRepository,
+                tenantDirectoryPort, pointsAccountRepository);
     }
 
     // SubscriptionDomainService implements all 5 use-case interfaces below directly, so

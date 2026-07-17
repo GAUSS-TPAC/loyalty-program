@@ -2,6 +2,7 @@ package com.yowyob.loyalty.application.auth;
 
 import com.yowyob.loyalty.infrastructure.kernelcore.adapter.KernelCoreAuthAdapter;
 import com.yowyob.loyalty.infrastructure.kernelcore.config.KernelCoreProperties;
+import com.yowyob.loyalty.infrastructure.kernelcore.dto.KernelDiscoveredContextDto;
 import com.yowyob.loyalty.infrastructure.kernelcore.dto.KernelLoginResultDto;
 import com.yowyob.loyalty.infrastructure.kernelcore.dto.KernelOrganizationSummaryDto;
 import com.yowyob.loyalty.shared.exception.OrganizationNotAccessibleException;
@@ -100,6 +101,82 @@ public class AuthServiceTest {
                 .thenReturn(Mono.just(new KernelLoginResultDto("jwt-token", List.of())));
 
         StepVerifier.create(authService.login("admin@x.com", "pw", null))
+                .expectError(OrganizationNotAccessibleException.class)
+                .verify();
+    }
+
+    @Test
+    void skipsContextDiscoveryWhenTenantIdIsConfigured() {
+        KernelOrganizationSummaryDto onlyOrg = org("org-1", "LOYALTY-PROGRAM");
+        when(kernelCoreAuthAdapter.login(Mockito.anyString(), Mockito.anyString(), Mockito.anyString()))
+                .thenReturn(Mono.just(new KernelLoginResultDto("jwt-token", List.of(onlyOrg))));
+
+        StepVerifier.create(authService.login("admin@x.com", "pw", null))
+                .expectNextCount(1)
+                .verifyComplete();
+
+        Mockito.verify(kernelCoreAuthAdapter, Mockito.never())
+                .discoverContexts(Mockito.anyString(), Mockito.anyString());
+    }
+
+    // ── Repli discover-contexts quand app.kernel-core.tenant-id n'est pas configuré ──
+
+    private static KernelDiscoveredContextDto context(String tenantId, KernelOrganizationSummaryDto... orgs) {
+        KernelDiscoveredContextDto dto = new KernelDiscoveredContextDto();
+        dto.setTenantId(tenantId);
+        dto.setOrganizations(List.of(orgs));
+        return dto;
+    }
+
+    private AuthService serviceWithoutConfiguredTenant() {
+        return new AuthService(kernelCoreAuthAdapter, new KernelCoreProperties());
+    }
+
+    @Test
+    void discoversTenantFromSingleContextWhenTenantIdNotConfigured() {
+        KernelOrganizationSummaryDto onlyOrg = org("org-1", "LOYALTY-PROGRAM");
+        when(kernelCoreAuthAdapter.discoverContexts("admin@x.com", "pw"))
+                .thenReturn(Mono.just(List.of(context("tenant-42", onlyOrg))));
+        when(kernelCoreAuthAdapter.login("tenant-42", "admin@x.com", "pw"))
+                .thenReturn(Mono.just(new KernelLoginResultDto("jwt-token", List.of(onlyOrg))));
+
+        StepVerifier.create(serviceWithoutConfiguredTenant().login("admin@x.com", "pw", null))
+                .assertNext(result -> assertEquals("org-1", result.organizationId()))
+                .verifyComplete();
+    }
+
+    @Test
+    void discoversTenantFromContextContainingTheRequestedOrganization() {
+        KernelOrganizationSummaryDto orgA = org("org-a", "ALPHA");
+        KernelOrganizationSummaryDto orgB = org("org-b", "BETA");
+        when(kernelCoreAuthAdapter.discoverContexts("admin@x.com", "pw"))
+                .thenReturn(Mono.just(List.of(context("tenant-a", orgA), context("tenant-b", orgB))));
+        when(kernelCoreAuthAdapter.login("tenant-b", "admin@x.com", "pw"))
+                .thenReturn(Mono.just(new KernelLoginResultDto("jwt-token", List.of(orgB))));
+
+        StepVerifier.create(serviceWithoutConfiguredTenant().login("admin@x.com", "pw", "org-b"))
+                .assertNext(result -> assertEquals("org-b", result.organizationId()))
+                .verifyComplete();
+    }
+
+    @Test
+    void requiresSelectionWhenMultipleContextsAndNoOrganizationRequested() {
+        when(kernelCoreAuthAdapter.discoverContexts("admin@x.com", "pw"))
+                .thenReturn(Mono.just(List.of(
+                        context("tenant-a", org("org-a", "ALPHA")),
+                        context("tenant-b", org("org-b", "BETA")))));
+
+        StepVerifier.create(serviceWithoutConfiguredTenant().login("admin@x.com", "pw", null))
+                .expectError(OrganizationSelectionRequiredException.class)
+                .verify();
+    }
+
+    @Test
+    void rejectsAccountWithNoDiscoverableContext() {
+        when(kernelCoreAuthAdapter.discoverContexts("admin@x.com", "pw"))
+                .thenReturn(Mono.just(List.of()));
+
+        StepVerifier.create(serviceWithoutConfiguredTenant().login("admin@x.com", "pw", null))
                 .expectError(OrganizationNotAccessibleException.class)
                 .verify();
     }

@@ -9,6 +9,28 @@ const BASE = "/backend";
 
 // ─── Utilitaires de base ────────────────────────────────────────────────────
 
+/** Corps RFC 7807 renvoyé par le GlobalExceptionHandler du backend. */
+export interface ProblemDetails {
+    type?: string;
+    /** Code d'erreur applicatif (ex: ORGANIZATION_SELECTION_REQUIRED). */
+    title?: string;
+    status?: number;
+    detail?: string;
+    /** Propriétés additionnelles de l'erreur (ex: organizations pour la sélection). */
+    errors?: Record<string, unknown>;
+}
+
+export class ApiError extends Error {
+    constructor(
+        public readonly status: number,
+        message: string,
+        public readonly problem?: ProblemDetails
+    ) {
+        super(message);
+        this.name = "ApiError";
+    }
+}
+
 /**
  * Le backend traite un JWT admin (claim organization_id) et une clé API tenant
  * (X-Api-Key) comme deux credentials équivalents, résolus tous deux vers
@@ -54,7 +76,17 @@ async function requestWithHeaders<T>(
 
     if (!res.ok) {
         const text = await res.text().catch(() => res.statusText);
-        throw new Error(`[${res.status}] ${text}`);
+        let problem: ProblemDetails | undefined;
+        try {
+            problem = JSON.parse(text);
+        } catch {
+            // corps non JSON (proxy, HTML d'erreur…) : on garde le texte brut
+        }
+        throw new ApiError(
+            res.status,
+            problem?.detail ?? `[${res.status}] ${text}`,
+            problem
+        );
     }
 
     // Certaines réponses (ex: Spring Boot Actuator) utilisent un content-type
@@ -117,23 +149,21 @@ export interface WalletResponse {
 
 export interface WalletTransaction {
     id: string;
-    walletId: string;
     type: string;
+    source: string;
     amount: number;
+    balanceBefore: number;
     balanceAfter: number;
-    description: string;
     status: string;
     createdAt: string;
 }
 
 export interface PointsAccountResponse {
-    memberId: string;
-    tenantId: string;
-    totalPoints: number;
-    tier: TierLevel;
-    tierLabel: string;
-    nextTierPoints: number;
-    progressPercent: number;
+    availablePoints: number;
+    lifetimeEarned: number;
+    lifetimeSpent: number;
+    tierLevel: TierLevel;
+    tierMultiplier: number;
 }
 
 export type TierLevel = "BRONZE" | "SILVER" | "GOLD" | "PLATINUM";
@@ -150,10 +180,10 @@ export interface PointsTransactionResponse {
 }
 
 export interface MemberTierResponse {
-    memberId: string;
-    tier: TierLevel;
-    tierLabel: string;
-    achievedAt: string;
+    tierLevel: TierLevel;
+    multiplier: number;
+    reachedAt: string;
+    validUntil: string | null;
 }
 
 export interface RuleConditionDto {
@@ -247,11 +277,16 @@ export interface ApiKeyResponse {
     createdAt: string;
     lastUsedAt: string | null;
     rawKey?: string;
+    ownerId: string | null;
 }
 
 export interface CreateApiKeyRequest {
     name: string;
     mode?: ApiKeyMode;
+}
+
+export interface AccessResponse {
+    tenantAdmin: boolean;
 }
 
 export type WebhookDeliveryStatus = "PENDING" | "SUCCEEDED" | "FAILED" | "EXHAUSTED";
@@ -300,6 +335,21 @@ export interface TestPingResponse {
 
 // ─── API Wallet ──────────────────────────────────────────────────────────────
 
+export interface WalletPolicyResponse {
+    currencyName: string;
+    currencySymbol: string;
+    /** Correspondance des points : 1 point = exchangeRate unité(s) de monnaie */
+    exchangeRate: number;
+    dailySpendCap: number | null;
+    maxBalance: number | null;
+    maxTopupPerTransaction: number | null;
+    minWithdrawal: number | null;
+    withdrawalDelayHours: number;
+    otpThreshold: number | null;
+    kycRequiredForWithdrawal: boolean;
+    expiryDays: number | null;
+}
+
 export const walletApi = {
     /** GET /api/v1/wallet — Consulter le wallet du membre connecté */
     getWallet: () => get<WalletResponse>("/api/v1/wallet"),
@@ -309,6 +359,16 @@ export const walletApi = {
         get<WalletTransaction[]>(
             `/api/v1/wallet/transactions?page=${page}&size=${size}`
         ),
+
+    /** GET /api/v1/wallet/policy — Politique wallet du tenant (correspondance des points) */
+    getPolicy: () => get<WalletPolicyResponse>("/api/v1/wallet/policy"),
+
+    /** PUT /api/v1/wallet/policy/points-conversion — Modifier la correspondance des points */
+    updatePointsConversion: (body: {
+        currencyName: string;
+        currencySymbol: string;
+        exchangeRate: number;
+    }) => put<WalletPolicyResponse>("/api/v1/wallet/policy/points-conversion", body),
 };
 
 // ─── API Members / Loyalty ───────────────────────────────────────────────────
@@ -576,6 +636,7 @@ export interface PlatformTenantResponse {
     currentPeriodEnd: string | null;
     totalPaidAmount: number;
     currency: string;
+    totalPointsGenerated: number;
 }
 
 export const platformApi = {
@@ -600,9 +661,33 @@ export interface LoginResponse {
     organizationName: string;
 }
 
+export interface RegisterRequest {
+    firstName: string;
+    lastName: string;
+    email: string;
+    password: string;
+}
+
+export interface RegisterResponse {
+    email: string;
+    /** Typiquement "EMAIL_VERIFICATION_REQUIRED" : le login échouera tant que l'email n'est pas confirmé. */
+    status: string;
+    emailVerified: boolean;
+}
+
 export const authApi = {
     /** POST /api/v1/auth/login — Connexion admin par email/mot de passe (KernelCore) */
     login: (data: LoginRequest) => post<LoginResponse>("/api/v1/auth/login", data),
+
+    /** POST /api/v1/auth/register — Inscription admin (crée le compte via KernelCore, vérification email requise avant login) */
+    register: (data: RegisterRequest) => post<RegisterResponse>("/api/v1/auth/register", data),
+};
+
+// ─── API Accès (rôle de l'utilisateur courant) ────────────────────────────────
+
+export const accessApi = {
+    /** GET /api/access/me — Indique si l'utilisateur courant est admin du tenant ou développeur */
+    me: () => get<AccessResponse>("/api/access/me"),
 };
 
 // ─── API Clés API (auto-service tenant — JWT ou clé API) ─────────────────────
@@ -617,6 +702,20 @@ export const apiKeyApi = {
 
     /** DELETE /api/v1/admin/api-keys/{id} — Révoquer une clé API */
     revoke: (id: string) => del<void>(`/api/v1/admin/api-keys/${id}`),
+};
+
+// ─── API Invitation développeur (admin uniquement — via Kernel Core) ─────────
+
+export interface InviteDeveloperRequest {
+    firstName: string;
+    lastName: string;
+    email: string;
+}
+
+export const developerInviteApi = {
+    /** POST /api/v1/admin/developers/invite — Crée le compte sur Kernel Core + email de définition de mot de passe */
+    invite: (data: InviteDeveloperRequest) =>
+        post<void>("/api/v1/admin/developers/invite", data),
 };
 
 // ─── API Webhooks (auto-service tenant — JWT ou clé API) ─────────────────────

@@ -24,4 +24,22 @@ public class WalletPolicyRepositoryAdapter implements WalletPolicyRepository {
             .map(mapper::toDomain)
             .defaultIfEmpty(WalletPolicy.defaults());
     }
+
+    @Override
+    public Mono<WalletPolicy> save(TenantId tenantId, WalletPolicy policy) {
+        return r2dbcRepo.findByTenantId(tenantId.value())
+            .map(existing -> {
+                var entity = mapper.toEntity(policy);
+                entity.setId(existing.getId());
+                entity.setTenantId(existing.getTenantId());
+                return entity;
+            })
+            .switchIfEmpty(Mono.fromSupplier(() -> {
+                var entity = mapper.toEntity(policy);
+                entity.setTenantId(tenantId.value());
+                return entity;
+            }))
+            .flatMap(r2dbcRepo::save)
+            .map(mapper::toDomain);
+    }
 }
