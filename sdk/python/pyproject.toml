@@ -1,0 +1,15 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "yowyob-loyalty-sdk"
+version = "1.0.0"
+description = "SDK Python officiel de la plateforme de fidélité Yowyob Loyalty"
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.9"
+keywords = ["yowyob", "loyalty", "fidelite", "points", "sdk"]
+
+[tool.setuptools.packages.find]
+include = ["loyalty_sdk*"]

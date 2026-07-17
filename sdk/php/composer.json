@@ -1,0 +1,17 @@
+{
+    "name": "yowyob/loyalty-sdk",
+    "description": "SDK PHP officiel de la plateforme de fidélité Yowyob Loyalty",
+    "type": "library",
+    "keywords": ["yowyob", "loyalty", "fidelite", "points", "sdk"],
+    "license": "MIT",
+    "require": {
+        "php": ">=8.0",
+        "ext-curl": "*",
+        "ext-json": "*"
+    },
+    "autoload": {
+        "psr-4": {
+            "Yowyob\\Loyalty\\": "src/"
+        }
+    }
+}
