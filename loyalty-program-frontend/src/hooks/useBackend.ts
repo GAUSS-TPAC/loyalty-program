@@ -16,6 +16,7 @@ import {
     campaignApi,
     subscriptionApi,
     apiKeyApi,
+    applicationApi,
     webhookApi,
     adminMembersApi,
     tierPolicyApi,
@@ -35,6 +36,7 @@ import {
     type TenantSubscriptionResponse,
     type InvoiceResponse,
     type ApiKeyResponse,
+    type ApplicationResponse,
     type WebhookEndpointResponse,
     type WebhookDeliveryResponse,
     type MemberSummaryResponse,
@@ -197,6 +199,11 @@ export function useMyInvoices(): UseQueryResult<InvoiceResponse[]> {
 /** Retourne les clés API du tenant */
 export function useApiKeys(): UseQueryResult<ApiKeyResponse[]> {
     return useQuery(() => apiKeyApi.list());
+}
+
+/** Retourne les applications d'intégration du tenant */
+export function useApplications(): UseQueryResult<ApplicationResponse[]> {
+    return useQuery(() => applicationApi.list());
 }
 
 /** Retourne les webhooks du tenant */

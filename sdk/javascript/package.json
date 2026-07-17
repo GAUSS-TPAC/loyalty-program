@@ -1,0 +1,22 @@
+{
+  "name": "@yowyob/loyalty-sdk",
+  "version": "1.0.0",
+  "description": "SDK JavaScript/TypeScript officiel de la plateforme de fidélité Yowyob Loyalty",
+  "keywords": ["yowyob", "loyalty", "fidelite", "points", "sdk"],
+  "license": "MIT",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": ["dist"],
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0",
+    "@types/node": "^20.0.0"
+  }
+}
