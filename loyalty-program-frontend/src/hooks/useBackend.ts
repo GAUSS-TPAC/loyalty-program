@@ -18,6 +18,7 @@ import {
     subscriptionApi,
     apiKeyApi,
     accessApi,
+    applicationApi,
     webhookApi,
     adminMembersApi,
     tierPolicyApi,
@@ -38,6 +39,7 @@ import {
     type TenantSubscriptionResponse,
     type InvoiceResponse,
     type ApiKeyResponse,
+    type ApplicationResponse,
     type WebhookEndpointResponse,
     type WebhookDeliveryResponse,
     type MemberSummaryResponse,
@@ -211,6 +213,11 @@ export function useAccess(): UseQueryResult<AccessResponse> {
 /** Retourne les clés API accessibles à l'utilisateur courant (toutes pour un admin, les siennes pour un développeur) */
 export function useApiKeys(): UseQueryResult<ApiKeyResponse[]> {
     return useQuery(() => apiKeyApi.list());
+}
+
+/** Retourne les applications d'intégration du tenant */
+export function useApplications(): UseQueryResult<ApplicationResponse[]> {
+    return useQuery(() => applicationApi.list());
 }
 
 /** Retourne les webhooks du tenant */

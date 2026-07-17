@@ -27,8 +27,16 @@ public class ApiKeyService {
     public record CreatedKey(ApiKey record, String rawKey) {}
 
     public Mono<CreatedKey> create(TenantId tenantId, String name, ApiKeyMode mode, UUID ownerId) {
+        return create(tenantId, name, mode, ownerId, "lk");
+    }
+
+    public Mono<CreatedKey> create(TenantId tenantId, String name, ApiKeyMode mode, String prefixBase) {
+        return create(tenantId, name, mode, null, prefixBase);
+    }
+
+    public Mono<CreatedKey> create(TenantId tenantId, String name, ApiKeyMode mode, UUID ownerId, String prefixBase) {
         ApiKeyMode effectiveMode = mode != null ? mode : ApiKeyMode.LIVE;
-        String raw = generateRawKey(effectiveMode);
+        String raw = generateRawKey(effectiveMode, prefixBase);
         String prefix = raw.substring(0, Math.min(raw.length(), 12));
         String hash = sha256(raw);
         ApiKey key = ApiKey.create(tenantId, name, hash, prefix, effectiveMode, ownerId);
@@ -57,10 +65,10 @@ public class ApiKeyService {
                 .flatMap(k -> repository.save(k.markUsed()));
     }
 
-    private static String generateRawKey(ApiKeyMode mode) {
+    private static String generateRawKey(ApiKeyMode mode, String prefixBase) {
         byte[] bytes = new byte[32];
         RANDOM.nextBytes(bytes);
-        String modePrefix = mode == ApiKeyMode.TEST ? "lk_test_" : "lk_live_";
+        String modePrefix = prefixBase + (mode == ApiKeyMode.TEST ? "_test_" : "_live_");
         return modePrefix + Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
     }
 

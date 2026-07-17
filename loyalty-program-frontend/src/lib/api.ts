@@ -333,6 +333,48 @@ export interface TestPingResponse {
     responseSnippet: string | null;
 }
 
+// ─── Types Applications d'intégration (clé publique + clé privée + callback) ─
+
+export interface ApplicationResponse {
+    id: string;
+    name: string;
+    description: string | null;
+    websiteUrl: string | null;
+    logoUrl: string | null;
+    publicKey: string;
+    privateKeyPrefix: string | null;
+    mode: ApiKeyMode;
+    active: boolean;
+    webhookEndpointId: string | null;
+    callbackUrl: string | null;
+    createdAt: string;
+    updatedAt: string;
+    /** Clé privée complète — renvoyée UNE SEULE FOIS à la création / rotation. */
+    privateKey?: string | null;
+    /** Secret webhook complet — renvoyé UNE SEULE FOIS à la création du callback / rotation. */
+    webhookSecret?: string | null;
+}
+
+export interface CreateApplicationRequest {
+    name: string;
+    description?: string;
+    websiteUrl?: string;
+    logoUrl?: string;
+    mode?: ApiKeyMode;
+    callbackUrl?: string;
+    eventTypes?: string[];
+}
+
+export interface UpdateApplicationRequest {
+    name?: string;
+    description?: string;
+    websiteUrl?: string;
+    logoUrl?: string;
+    /** Chaîne vide = supprimer le callback ; URL = créer/mettre à jour l'endpoint. */
+    callbackUrl?: string;
+    eventTypes?: string[];
+}
+
 // ─── API Wallet ──────────────────────────────────────────────────────────────
 
 export interface WalletPolicyResponse {
@@ -716,6 +758,35 @@ export const developerInviteApi = {
     /** POST /api/v1/admin/developers/invite — Crée le compte sur Kernel Core + email de définition de mot de passe */
     invite: (data: InviteDeveloperRequest) =>
         post<void>("/api/v1/admin/developers/invite", data),
+};
+
+// ─── API Applications d'intégration (auto-service tenant) ────────────────────
+
+export const applicationApi = {
+    /** GET /api/v1/admin/applications — Lister les applications du tenant */
+    list: () => get<ApplicationResponse[]>("/api/v1/admin/applications"),
+
+    /** POST /api/v1/admin/applications — Créer une application (secrets affichés une seule fois) */
+    create: (data: CreateApplicationRequest) =>
+        post<ApplicationResponse>("/api/v1/admin/applications", data),
+
+    /** GET /api/v1/admin/applications/{id} — Détail d'une application */
+    get: (id: string) => get<ApplicationResponse>(`/api/v1/admin/applications/${id}`),
+
+    /** PATCH /api/v1/admin/applications/{id} — Mettre à jour une application */
+    update: (id: string, data: UpdateApplicationRequest) =>
+        patch<ApplicationResponse>(`/api/v1/admin/applications/${id}`, data),
+
+    /** DELETE /api/v1/admin/applications/{id} — Supprimer (révoque la clé + supprime le webhook) */
+    remove: (id: string) => del<void>(`/api/v1/admin/applications/${id}`),
+
+    /** POST /api/v1/admin/applications/{id}/rotate-private-key — Nouvelle clé privée (une seule fois) */
+    rotatePrivateKey: (id: string) =>
+        post<ApplicationResponse>(`/api/v1/admin/applications/${id}/rotate-private-key`, {}),
+
+    /** POST /api/v1/admin/applications/{id}/rotate-webhook-secret — Nouveau secret webhook (une seule fois) */
+    rotateWebhookSecret: (id: string) =>
+        post<ApplicationResponse>(`/api/v1/admin/applications/${id}/rotate-webhook-secret`, {}),
 };
 
 // ─── API Webhooks (auto-service tenant — JWT ou clé API) ─────────────────────

@@ -7,6 +7,8 @@ import com.yowyob.loyalty.domain.campaign.exception.CampaignNotFoundException;
 import com.yowyob.loyalty.domain.loyalty.exception.LoyaltyDomainException;
 import com.yowyob.loyalty.domain.promo.exception.*;
 import com.yowyob.loyalty.domain.subscription.exception.*;
+import com.yowyob.loyalty.domain.tenant.exception.ApplicationDomainException;
+import com.yowyob.loyalty.domain.tenant.exception.ApplicationNotFoundException;
 
 import java.time.Instant;
 import java.util.Map;
@@ -107,6 +109,19 @@ public class GlobalExceptionHandler {
                 requestId,
                 Instant.now(),
                 null
+        );
+        return Mono.just(ResponseEntity.status(code.getHttpStatus()).body(problemDetails));
+    }
+
+    @ExceptionHandler(ApplicationDomainException.class)
+    public Mono<ResponseEntity<ProblemDetails>> handleApplicationDomainException(ApplicationDomainException ex, ServerWebExchange exchange) {
+        String requestId = extractRequestId(exchange);
+        ErrorCode code = ex instanceof ApplicationNotFoundException
+                ? ErrorCode.RESOURCE_NOT_FOUND
+                : ErrorCode.VALIDATION_ERROR;
+        ProblemDetails problemDetails = new ProblemDetails(
+                "https://loyalty.yowyob.com/errors/" + code.name().toLowerCase(),
+                code.name(), code.getHttpStatus(), ex.getMessage(), requestId, Instant.now(), null
         );
         return Mono.just(ResponseEntity.status(code.getHttpStatus()).body(problemDetails));
     }

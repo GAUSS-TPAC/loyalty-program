@@ -1,8 +1,12 @@
 package com.yowyob.loyalty.application.auth;
 
+import com.yowyob.loyalty.infrastructure.kernelcore.adapter.KernelCoreActorAdapter;
 import com.yowyob.loyalty.infrastructure.kernelcore.adapter.KernelCoreAuthAdapter;
+import com.yowyob.loyalty.infrastructure.kernelcore.adapter.KernelCoreTenantAdapter;
 import com.yowyob.loyalty.infrastructure.kernelcore.config.KernelCoreProperties;
+import com.yowyob.loyalty.infrastructure.kernelcore.dto.KernelBusinessActorDto;
 import com.yowyob.loyalty.infrastructure.kernelcore.dto.KernelDiscoveredContextDto;
+import com.yowyob.loyalty.infrastructure.kernelcore.dto.KernelOrganizationDto;
 import com.yowyob.loyalty.infrastructure.kernelcore.dto.KernelLoginResultDto;
 import com.yowyob.loyalty.infrastructure.kernelcore.dto.KernelOrganizationSummaryDto;
 import com.yowyob.loyalty.shared.exception.OrganizationNotAccessibleException;
@@ -14,6 +18,7 @@ import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
 
 import java.util.List;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.when;
@@ -27,6 +32,8 @@ import static org.mockito.Mockito.when;
 public class AuthServiceTest {
 
     private KernelCoreAuthAdapter kernelCoreAuthAdapter;
+    private KernelCoreActorAdapter kernelCoreActorAdapter;
+    private KernelCoreTenantAdapter kernelCoreTenantAdapter;
     private AuthService authService;
 
     private static KernelOrganizationSummaryDto org(String id, String code) {
@@ -40,9 +47,11 @@ public class AuthServiceTest {
     @BeforeEach
     void setup() {
         kernelCoreAuthAdapter = Mockito.mock(KernelCoreAuthAdapter.class);
+        kernelCoreActorAdapter = Mockito.mock(KernelCoreActorAdapter.class);
+        kernelCoreTenantAdapter = Mockito.mock(KernelCoreTenantAdapter.class);
         KernelCoreProperties properties = new KernelCoreProperties();
         properties.setTenantId("11111111-1111-1111-1111-111111111111");
-        authService = new AuthService(kernelCoreAuthAdapter, properties);
+        authService = new AuthService(kernelCoreAuthAdapter, properties, kernelCoreActorAdapter, kernelCoreTenantAdapter);
     }
 
     @Test
@@ -100,9 +109,34 @@ public class AuthServiceTest {
         when(kernelCoreAuthAdapter.login(Mockito.anyString(), Mockito.anyString(), Mockito.anyString()))
                 .thenReturn(Mono.just(new KernelLoginResultDto("jwt-token", List.of())));
 
-        StepVerifier.create(authService.login("admin@x.com", "pw", null))
+        StepVerifier.create(authService.login("admin@x.com", "pw", "org-x"))
                 .expectError(OrganizationNotAccessibleException.class)
                 .verify();
+    }
+
+    @Test
+    void provisionsDefaultOrganizationOnFirstLoginWithoutOrganization() {
+        when(kernelCoreAuthAdapter.login(Mockito.anyString(), Mockito.anyString(), Mockito.anyString()))
+                .thenReturn(Mono.just(new KernelLoginResultDto("jwt-token", List.of())));
+        KernelBusinessActorDto actor = new KernelBusinessActorDto();
+        actor.setId(UUID.randomUUID());
+        actor.setName("Admin X");
+        when(kernelCoreActorAdapter.getMyProfile("jwt-token")).thenReturn(Mono.just(actor));
+        KernelOrganizationDto createdOrg = new KernelOrganizationDto();
+        createdOrg.setId(UUID.randomUUID());
+        createdOrg.setCode("ORG-TEST");
+        createdOrg.setDisplayName("Admin X");
+        when(kernelCoreTenantAdapter.createOrganization(Mockito.eq("jwt-token"), Mockito.eq(actor.getId()),
+                Mockito.anyString(), Mockito.anyString(), Mockito.anyString()))
+                .thenReturn(Mono.just(createdOrg));
+
+        StepVerifier.create(authService.login("admin@x.com", "pw", null))
+                .assertNext(result -> {
+                    assertEquals("jwt-token", result.token());
+                    assertEquals(createdOrg.getId().toString(), result.organizationId());
+                    assertEquals("ORG-TEST", result.organizationCode());
+                })
+                .verifyComplete();
     }
 
     @Test
@@ -129,7 +163,7 @@ public class AuthServiceTest {
     }
 
     private AuthService serviceWithoutConfiguredTenant() {
-        return new AuthService(kernelCoreAuthAdapter, new KernelCoreProperties());
+        return new AuthService(kernelCoreAuthAdapter, new KernelCoreProperties(), kernelCoreActorAdapter, kernelCoreTenantAdapter);
     }
 
     @Test
