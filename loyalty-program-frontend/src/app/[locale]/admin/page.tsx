@@ -1,6 +1,15 @@
 "use client";
 
-import { Building2, Coins, RefreshCw, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { Building2, Coins, RefreshCw, AlertTriangle, CheckCircle2, Sparkles } from "lucide-react";
+import {
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+} from "recharts";
 import { usePlatformTenants } from "@/hooks/useBackend";
 
 const STATUS_STYLES: Record<string, string> = {
@@ -11,6 +20,19 @@ const STATUS_STYLES: Record<string, string> = {
   EXPIRED: "bg-muted border-border text-muted-foreground",
 };
 
+function ChartTooltip({ active, payload }: { active?: boolean; payload?: { payload: { name: string; points: number } }[] }) {
+  if (!active || !payload?.length) return null;
+  const { name, points } = payload[0].payload;
+  return (
+    <div className="bg-card border border-border rounded-lg shadow-md px-3 py-2 text-xs">
+      <p className="font-semibold text-foreground mb-0.5">{name}</p>
+      <p className="text-muted-foreground">
+        <span className="font-mono font-semibold text-primary">{points.toLocaleString()}</span> points générés
+      </p>
+    </div>
+  );
+}
+
 export default function PlatformOrganisationsPage() {
   const { data: tenants, isLoading, error, refetch } = usePlatformTenants();
 
@@ -19,6 +41,12 @@ export default function PlatformOrganisationsPage() {
     return acc;
   }, {});
   const activeCount = tenants?.filter((t) => t.subscriptionStatus === "ACTIVE").length ?? 0;
+  const totalPointsGenerated = (tenants ?? []).reduce((sum, t) => sum + t.totalPointsGenerated, 0);
+
+  const chartData = (tenants ?? [])
+    .map((t) => ({ name: t.tenantName, points: t.totalPointsGenerated }))
+    .sort((a, b) => b.points - a.points)
+    .slice(0, 10);
 
   return (
     <div className="space-y-8">
@@ -40,7 +68,7 @@ export default function PlatformOrganisationsPage() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         <div className="bg-card border border-border rounded-2xl p-6 shadow-sm">
           <div className="flex items-center gap-3 mb-3">
             <div className="p-2.5 bg-secondary rounded-xl">
@@ -66,6 +94,17 @@ export default function PlatformOrganisationsPage() {
         <div className="bg-card border border-border rounded-2xl p-6 shadow-sm">
           <div className="flex items-center gap-3 mb-3">
             <div className="p-2.5 bg-secondary rounded-xl">
+              <Sparkles className="w-5 h-5 text-primary" />
+            </div>
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">
+              Points générés (total)
+            </p>
+          </div>
+          <p className="text-2xl font-bold font-mono">{totalPointsGenerated.toLocaleString()}</p>
+        </div>
+        <div className="bg-card border border-border rounded-2xl p-6 shadow-sm">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="p-2.5 bg-secondary rounded-xl">
               <Coins className="w-5 h-5 text-primary" />
             </div>
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">
@@ -85,6 +124,38 @@ export default function PlatformOrganisationsPage() {
           )}
         </div>
       </div>
+
+      {/* Graphique : points générés par organisation */}
+      {chartData.length > 0 && (
+        <div className="border border-border bg-card rounded-xl shadow-sm overflow-hidden">
+          <div className="bg-secondary px-6 py-4 border-b border-border">
+            <h3 className="font-semibold text-foreground text-sm">
+              Points générés par organisation {chartData.length > 1 ? "(top 10)" : ""}
+            </h3>
+          </div>
+          <div className="p-6" style={{ height: 320 }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={chartData} margin={{ top: 4, right: 8, left: 0, bottom: 4 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+                <XAxis
+                  dataKey="name"
+                  tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
+                  axisLine={{ stroke: "var(--border)" }}
+                  tickLine={false}
+                />
+                <YAxis
+                  tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
+                  axisLine={false}
+                  tickLine={false}
+                  width={48}
+                />
+                <Tooltip content={<ChartTooltip />} cursor={{ fill: "var(--secondary)" }} />
+                <Bar dataKey="points" fill="var(--primary)" radius={[4, 4, 0, 0]} maxBarSize={48} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      )}
 
       {/* Table */}
       <div className="border border-border bg-card rounded-xl shadow-sm overflow-hidden">
@@ -115,6 +186,7 @@ export default function PlatformOrganisationsPage() {
                   <th className="px-6 py-4 font-semibold tracking-wider">Plan</th>
                   <th className="px-6 py-4 font-semibold tracking-wider">Statut</th>
                   <th className="px-6 py-4 font-semibold tracking-wider">Fin de période</th>
+                  <th className="px-6 py-4 font-semibold tracking-wider text-right">Points générés</th>
                   <th className="px-6 py-4 font-semibold tracking-wider text-right">Payé</th>
                 </tr>
               </thead>
@@ -140,6 +212,9 @@ export default function PlatformOrganisationsPage() {
                     </td>
                     <td className="px-6 py-4 font-mono text-muted-foreground text-xs">
                       {t.currentPeriodEnd ? new Date(t.currentPeriodEnd).toLocaleDateString("fr-FR") : "—"}
+                    </td>
+                    <td className="px-6 py-4 font-mono font-semibold text-right">
+                      {t.totalPointsGenerated.toLocaleString()}
                     </td>
                     <td className="px-6 py-4 font-mono font-semibold text-right">
                       {t.totalPaidAmount.toLocaleString()} {t.currency}

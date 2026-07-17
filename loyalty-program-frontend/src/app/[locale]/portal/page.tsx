@@ -20,6 +20,7 @@ import {
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/routing";
 import { useAdminMembers, useRules, useBackendHealth, useAdminLogs } from "@/hooks/useBackend";
+import { PointsConversionCard } from "@/components/wallet/PointsConversionCard";
 
 type TxFilter = "ALL" | "CREDIT" | "DEBIT";
 
@@ -175,6 +176,9 @@ export default function DashboardPage() {
           </div>
         ))}
       </div>
+
+      {/* Correspondance des points (taux de conversion du tenant) */}
+      <PointsConversionCard />
 
       {/* En-tête section Historique (style My-CoolPay) */}
       <div className="flex items-start gap-4 pt-2">

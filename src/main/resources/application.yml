@@ -120,6 +120,8 @@ app:
     token-endpoint: ${KERNEL_TOKEN_ENDPOINT:}
     # Tenant plateforme KernelCore (X-Tenant-Id) sous lequel /api/v1/auth/login se connecte.
     tenant-id: ${KERNEL_TENANT_ID:}
+    # Organisation KernelCore cible pour l'inscription publique (POST /api/v1/auth/register).
+    organization-code: ${KERNEL_ORGANIZATION_CODE:}
     connect-timeout-ms: 3000
     read-timeout-ms: 5000
 

@@ -191,6 +191,9 @@ class LoyaltyDomainServiceTest {
         @Override public PointsAccount save(PointsAccount account) { accounts.put(account.getMemberId().value().toString(), account); return account; }
         @Override public Optional<PointsAccount> findById(UUID id) { return Optional.empty(); }
         @Override public Optional<PointsAccount> findByMemberId(TenantId tenantId, UserId memberId) { return Optional.ofNullable(accounts.get(memberId.value().toString())); }
+        @Override public reactor.core.publisher.Mono<Long> sumLifetimeEarnedByTenant(TenantId tenantId) {
+            return reactor.core.publisher.Mono.just(accounts.values().stream().mapToLong(PointsAccount::getLifetimeEarned).sum());
+        }
     }
 
     static class InMemoryPointsTransactionRepository implements PointsTransactionRepository {

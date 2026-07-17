@@ -124,7 +124,7 @@ public class IntegrationApplicationService {
                 .flatMap(app -> apiKeyService.create(tenantId, "app:" + app.name(), app.mode(), "sk")
                         // créer la nouvelle clé avant de révoquer l'ancienne : api_key_id est NOT NULL
                         .flatMap(createdKey -> repository.save(app.withApiKey(createdKey.record().id()))
-                                .flatMap(saved -> apiKeyService.revoke(tenantId, app.apiKeyId())
+                                .flatMap(saved -> apiKeyService.revoke(tenantId, app.apiKeyId(), null, true)
                                         .thenReturn(new CreatedApplication(saved, createdKey.rawKey(), null)))));
     }
 
@@ -141,7 +141,7 @@ public class IntegrationApplicationService {
 
     public Mono<Void> delete(TenantId tenantId, UUID id) {
         return requireApp(tenantId, id)
-                .flatMap(app -> apiKeyService.revoke(tenantId, app.apiKeyId())
+                .flatMap(app -> apiKeyService.revoke(tenantId, app.apiKeyId(), null, true)
                         .then(app.webhookEndpointId() != null
                                 ? webhookEndpointService.delete(tenantId, app.webhookEndpointId())
                                 : Mono.empty())

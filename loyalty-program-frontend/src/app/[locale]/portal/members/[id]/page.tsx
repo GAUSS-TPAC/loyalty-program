@@ -19,8 +19,10 @@ import {
   useMemberPoints,
   useMemberTier,
   useMemberPointsHistory,
+  useTierPolicy,
 } from "@/hooks/useBackend";
 import { memberApi, type WalletResponse } from "@/lib/api";
+import { TIER_LABELS, computeTierProgress } from "@/lib/tierProgress";
 
 export default function MemberDetailView({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = use(params);
@@ -29,6 +31,10 @@ export default function MemberDetailView({ params }: { params: Promise<{ id: str
   const { data: pointsData, isLoading: pointsLoading, refetch: refetchPoints } = useMemberPoints(memberId);
   const { data: tierData, isLoading: tierLoading, refetch: refetchTier } = useMemberTier(memberId);
   const { data: history, isLoading: historyLoading, refetch: refetchHistory } = useMemberPointsHistory(memberId);
+  const { data: tierPolicy } = useTierPolicy();
+  const tierProgress = pointsData
+    ? computeTierProgress(pointsData.lifetimeEarned, tierPolicy?.thresholds)
+    : null;
 
   const [wallet, setWallet] = useState<WalletResponse | null>(null);
   const [walletLoading, setWalletLoading] = useState(true);
@@ -172,7 +178,7 @@ export default function MemberDetailView({ params }: { params: Promise<{ id: str
                   <div className="h-6 w-20 bg-muted animate-pulse rounded" />
                 ) : (
                   <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black uppercase tracking-widest bg-primary text-white shadow-sm ring-4 ring-primary/10">
-                    {tierData?.tierLabel ?? "Bronze"}
+                    {tierData ? TIER_LABELS[tierData.tierLevel] : "Bronze"}
                   </span>
                 )}
               </div>
@@ -180,16 +186,18 @@ export default function MemberDetailView({ params }: { params: Promise<{ id: str
               <div className="space-y-2.5">
                 <div className="flex justify-between text-[10px] font-black uppercase tracking-widest">
                   <span className="text-muted-foreground">Progression</span>
-                  <span className="text-primary font-mono">{pointsData?.progressPercent ?? 0}%</span>
+                  <span className="text-primary font-mono">{Math.round(tierProgress?.progressPercent ?? 0)}%</span>
                 </div>
                 <div className="h-3 bg-secondary rounded-full overflow-hidden border border-border shadow-inner">
                   <div
                     className="h-full bg-primary transition-all duration-1000"
-                    style={{ width: `${pointsData?.progressPercent ?? 0}%` }}
+                    style={{ width: `${tierProgress?.progressPercent ?? 0}%` }}
                   />
                 </div>
                 <p className="text-[10px] text-center text-muted-foreground italic">
-                  +{pointsData?.nextTierPoints ?? 0} points avant le rang supérieur
+                  {tierProgress && tierProgress.pointsToNext > 0
+                    ? `+${tierProgress.pointsToNext} points avant le rang supérieur`
+                    : "Rang maximum atteint"}
                 </p>
               </div>
             </div>
@@ -207,7 +215,7 @@ export default function MemberDetailView({ params }: { params: Promise<{ id: str
                   Points Totaux
                 </p>
                 <p className="text-xl font-bold text-foreground font-mono">
-                  {pointsData?.totalPoints?.toLocaleString() ?? "0"} <span className="text-xs">pts</span>
+                  {pointsData?.availablePoints?.toLocaleString() ?? "0"} <span className="text-xs">pts</span>
                 </p>
               </div>
             </div>

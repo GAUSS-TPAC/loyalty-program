@@ -55,7 +55,7 @@ public class IntegrationApplicationServiceTest {
     }
 
     private CreatedKey createdKey(ApiKeyMode mode, String raw) {
-        ApiKey key = ApiKey.create(TENANT, "app:Shop", "hash", raw.substring(0, 12), mode);
+        ApiKey key = ApiKey.create(TENANT, "app:Shop", "hash", raw.substring(0, 12), mode, null);
         return new CreatedKey(key, raw);
     }
 
@@ -124,7 +124,7 @@ public class IntegrationApplicationServiceTest {
         CreatedKey newKey = createdKey(ApiKeyMode.LIVE, "sk_live_newkeyabcdefgh");
         when(apiKeyService.create(eq(TENANT), eq("app:Shop"), eq(ApiKeyMode.LIVE), eq("sk")))
                 .thenReturn(Mono.just(newKey));
-        when(apiKeyService.revoke(TENANT, oldKeyId)).thenReturn(Mono.empty());
+        when(apiKeyService.revoke(TENANT, oldKeyId, null, true)).thenReturn(Mono.empty());
 
         StepVerifier.create(service.rotatePrivateKey(TENANT, app.id()))
                 .assertNext(created -> {
@@ -133,7 +133,7 @@ public class IntegrationApplicationServiceTest {
                 })
                 .verifyComplete();
 
-        verify(apiKeyService).revoke(TENANT, oldKeyId);
+        verify(apiKeyService).revoke(TENANT, oldKeyId, null, true);
     }
 
     @Test
@@ -154,13 +154,13 @@ public class IntegrationApplicationServiceTest {
         IntegrationApplication app = IntegrationApplication.create(TENANT, "Shop", null, null, null,
                 "pk_live_x", keyId, endpointId, ApiKeyMode.LIVE);
         when(repository.findByIdAndTenantId(app.id(), TENANT)).thenReturn(Mono.just(app));
-        when(apiKeyService.revoke(TENANT, keyId)).thenReturn(Mono.empty());
+        when(apiKeyService.revoke(TENANT, keyId, null, true)).thenReturn(Mono.empty());
         when(webhookEndpointService.delete(TENANT, endpointId)).thenReturn(Mono.empty());
         when(repository.deleteByIdAndTenantId(app.id(), TENANT)).thenReturn(Mono.empty());
 
         StepVerifier.create(service.delete(TENANT, app.id())).verifyComplete();
 
-        verify(apiKeyService).revoke(TENANT, keyId);
+        verify(apiKeyService).revoke(TENANT, keyId, null, true);
         verify(webhookEndpointService).delete(TENANT, endpointId);
         verify(repository).deleteByIdAndTenantId(app.id(), TENANT);
     }

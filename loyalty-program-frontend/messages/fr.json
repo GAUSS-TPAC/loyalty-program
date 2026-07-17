@@ -18,7 +18,9 @@
     "apiKeyTitle": "Accès développeur",
     "apiKeyDescription": "Collez la clé API de votre tenant pour accéder au portail développeur.",
     "apiKeyLabel": "Clé API",
-    "unlockPortal": "Déverrouiller le portail"
+    "unlockPortal": "Déverrouiller le portail",
+    "organizationLabel": "Organisation",
+    "organizationHelp": "Votre compte a accès à plusieurs organisations. Choisissez celle à administrer puis validez à nouveau."
   },
   "Navigation": {
     "overview": "Vue d'ensemble",
@@ -235,6 +237,17 @@
     "dashboardDescription": "Vue d'ensemble de votre intégration : clés API, webhooks et activité récente.",
     "apiKeysTitle": "Clés API",
     "apiKeysDescription": "Créez et gérez les clés utilisées par vos systèmes pour s'authentifier auprès de cette API (en-tête X-Api-Key).",
+    "myApiKeysTitle": "Mes clés API",
+    "myApiKeysDescription": "Créez et gérez les clés utilisées par vos applications pour s'authentifier auprès de cette API (en-tête X-Api-Key). Seules les clés que vous avez créées sont affichées ici.",
+    "apiKeysOwnerColumn": "Propriétaire",
+    "inviteDeveloperTitle": "Inviter un développeur",
+    "inviteDeveloperDescription": "Créez un compte développeur sur ce tenant. Il recevra un email pour définir son mot de passe.",
+    "firstNameLabel": "Prénom",
+    "lastNameLabel": "Nom",
+    "emailLabel": "Email",
+    "inviteButton": "Envoyer l'invitation",
+    "inviteSuccess": "Invitation envoyée à {email}. Un email pour définir son mot de passe va lui être envoyé.",
+    "adminOnlyNotice": "Seul un administrateur du tenant peut inviter des développeurs.",
     "webhooksTitle": "Webhooks",
     "webhooksDescription": "Enregistrez des URLs de callback pour recevoir des notifications en temps réel lorsque des événements se produisent dans ce programme de fidélité.",
     "logsTitle": "Journal des Livraisons",
@@ -339,6 +352,9 @@
     "acceptTerms": "J'accepte les conditions générales d'utilisation et la politique de confidentialité de Loyalty Engine.",
     "previous": "Précédent",
     "openAccount": "Ouvrir mon compte",
-    "loginInstead": "Vous avez déjà un compte ? Connectez-vous"
+    "loginInstead": "Vous avez déjà un compte ? Connectez-vous",
+    "checkEmailTitle": "Compte créé !",
+    "checkEmailMessage": "Vérifiez votre boîte mail ({email}) pour confirmer votre adresse avant de vous connecter.",
+    "backToLogin": "Aller à la connexion"
   }
 }

@@ -1,5 +1,6 @@
 package com.yowyob.loyalty.domain.subscription.service;
 
+import com.yowyob.loyalty.domain.loyalty.port.out.PointsAccountRepository;
 import com.yowyob.loyalty.domain.shared.model.TenantId;
 import com.yowyob.loyalty.domain.subscription.exception.*;
 import com.yowyob.loyalty.domain.subscription.model.*;
@@ -22,15 +23,18 @@ public class SubscriptionDomainService implements
     private final TenantSubscriptionRepository subscriptionRepository;
     private final InvoiceRepository invoiceRepository;
     private final TenantDirectoryPort tenantDirectoryPort;
+    private final PointsAccountRepository pointsAccountRepository;
 
     public SubscriptionDomainService(SubscriptionPlanRepository planRepository,
                                       TenantSubscriptionRepository subscriptionRepository,
                                       InvoiceRepository invoiceRepository,
-                                      TenantDirectoryPort tenantDirectoryPort) {
+                                      TenantDirectoryPort tenantDirectoryPort,
+                                      PointsAccountRepository pointsAccountRepository) {
         this.planRepository = planRepository;
         this.subscriptionRepository = subscriptionRepository;
         this.invoiceRepository = invoiceRepository;
         this.tenantDirectoryPort = tenantDirectoryPort;
+        this.pointsAccountRepository = pointsAccountRepository;
     }
 
     // ── Plans ─────────────────────────────────────────────────────────────────
@@ -218,9 +222,11 @@ public class SubscriptionDomainService implements
                         tenantDirectoryPort.resolveTenant(sub.tenantId())
                                 .map(com.yowyob.loyalty.domain.tenant.model.Tenant::getName)
                                 .onErrorReturn("Tenant " + sub.tenantId().value())
-                                .defaultIfEmpty("Tenant " + sub.tenantId().value())
+                                .defaultIfEmpty("Tenant " + sub.tenantId().value()),
+                        pointsAccountRepository.sumLifetimeEarnedByTenant(sub.tenantId())
+                                .defaultIfEmpty(0L)
                 ).map(t -> new PlatformTenantSummary(
-                        sub.tenantId(), t.getT3(), sub, t.getT1()[0], t.getT1()[1], t.getT2(), t.getT1()[2]
+                        sub.tenantId(), t.getT3(), sub, t.getT1()[0], t.getT1()[1], t.getT2(), t.getT1()[2], t.getT4()
                 )));
     }
 

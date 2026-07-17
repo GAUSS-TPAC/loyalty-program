@@ -34,6 +34,11 @@ public class ApiKeyRepositoryAdapter implements ApiKeyRepository {
         return r2dbc.findByTenantId(tenantId.value()).map(this::toDomain);
     }
 
+    @Override
+    public Flux<ApiKey> findByTenantIdAndOwnerId(TenantId tenantId, UUID ownerId) {
+        return r2dbc.findByTenantIdAndOwnerId(tenantId.value(), ownerId).map(this::toDomain);
+    }
+
     // Client-generated UUID id + no Persistable => save() always issues UPDATE. Decide
     // insert vs update explicitly (see RuleRepositoryAdapter for the full explanation).
     @Override
@@ -52,7 +57,7 @@ public class ApiKeyRepositoryAdapter implements ApiKeyRepository {
     private ApiKey toDomain(ApiKeyEntity e) {
         ApiKeyMode mode = e.getMode() != null ? ApiKeyMode.valueOf(e.getMode()) : ApiKeyMode.LIVE;
         return new ApiKey(e.getId(), TenantId.of(e.getTenantId()), e.getName(),
-                e.getKeyHash(), e.getKeyPrefix(), mode, e.isActive(), e.getCreatedAt(), e.getLastUsedAt());
+                e.getKeyHash(), e.getKeyPrefix(), mode, e.isActive(), e.getCreatedAt(), e.getLastUsedAt(), e.getOwnerId());
     }
 
     private ApiKeyEntity toEntity(ApiKey k) {
@@ -66,6 +71,7 @@ public class ApiKeyRepositoryAdapter implements ApiKeyRepository {
         e.setActive(k.active());
         e.setCreatedAt(k.createdAt());
         e.setLastUsedAt(k.lastUsedAt());
+        e.setOwnerId(k.ownerId());
         return e;
     }
 }

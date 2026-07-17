@@ -2,6 +2,7 @@ package com.yowyob.loyalty.infrastructure.kernelcore.config;
 
 import com.yowyob.loyalty.infrastructure.kernelcore.adapter.KernelCoreActorAdapter;
 import com.yowyob.loyalty.infrastructure.kernelcore.adapter.KernelCoreAuthAdapter;
+import com.yowyob.loyalty.infrastructure.kernelcore.adapter.KernelCoreDeveloperInviteAdapter;
 import com.yowyob.loyalty.infrastructure.kernelcore.adapter.KernelCoreTenantAdapter;
 import com.yowyob.loyalty.infrastructure.kernelcore.adapter.KernelCoreTokenService;
 import com.yowyob.loyalty.infrastructure.redis.adapter.TenantCacheAdapter;
@@ -64,5 +65,11 @@ public class KernelCoreConfig {
     public KernelCoreAuthAdapter kernelCoreAuthAdapter(
             @Qualifier("kernelCoreWebClient") WebClient kernelCoreWebClient) {
         return new KernelCoreAuthAdapter(kernelCoreWebClient);
+    }
+
+    @Bean
+    public KernelCoreDeveloperInviteAdapter kernelCoreDeveloperInviteAdapter(
+            @Qualifier("kernelCoreWebClient") WebClient kernelCoreWebClient) {
+        return new KernelCoreDeveloperInviteAdapter(kernelCoreWebClient);
     }
 }

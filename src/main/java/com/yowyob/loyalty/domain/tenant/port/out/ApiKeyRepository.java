@@ -10,6 +10,7 @@ import java.util.UUID;
 public interface ApiKeyRepository {
     Mono<ApiKey> findByKeyHash(String keyHash);
     Flux<ApiKey> findByTenantId(TenantId tenantId);
+    Flux<ApiKey> findByTenantIdAndOwnerId(TenantId tenantId, UUID ownerId);
     Mono<ApiKey> save(ApiKey apiKey);
     Mono<Void> deleteById(UUID id);
 }

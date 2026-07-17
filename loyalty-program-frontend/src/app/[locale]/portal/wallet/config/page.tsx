@@ -11,12 +11,26 @@ import {
   ArrowUpRight,
   ArrowDownLeft,
   User,
+  Award,
+  TrendingUp,
 } from "lucide-react";
 import {
   useAdminMembers,
   useMemberWallet,
   useMemberWalletTransactions,
+  useMemberPoints,
+  useTierPolicy,
 } from "@/hooks/useBackend";
+import { PointsConversionCard } from "@/components/wallet/PointsConversionCard";
+import { TIER_LABELS, computeTierProgress } from "@/lib/tierProgress";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+} from "@/components/ui/sheet";
+import type { WalletTransaction } from "@/lib/api";
 
 // ─── Badge statut wallet ──────────────────────────────────────────────────────
 
@@ -46,6 +60,77 @@ function WalletStatusBadge({ status }: { status: string }) {
   );
 }
 
+// ─── Panneau de détail d'une transaction ───────────────────────────────────────
+
+function TransactionDetailSheet({
+  transaction,
+  currencyCode,
+  onClose,
+}: {
+  transaction: WalletTransaction | null;
+  currencyCode: string;
+  onClose: () => void;
+}) {
+  const isCredit = transaction ? transaction.amount > 0 : false;
+
+  const rows = transaction
+    ? [
+      { label: "ID Transaction", value: transaction.id, mono: true },
+      { label: "Type", value: transaction.type },
+      { label: "Source", value: transaction.source },
+      { label: "Statut", value: transaction.status },
+      {
+        label: "Montant",
+        value: `${isCredit ? "+" : ""}${transaction.amount.toLocaleString("fr-FR")} ${currencyCode}`,
+      },
+      {
+        label: "Solde avant",
+        value: `${transaction.balanceBefore.toLocaleString("fr-FR")} ${currencyCode}`,
+      },
+      {
+        label: "Solde après",
+        value: `${transaction.balanceAfter.toLocaleString("fr-FR")} ${currencyCode}`,
+      },
+      {
+        label: "Date",
+        value: new Date(transaction.createdAt).toLocaleString("fr-FR", {
+          dateStyle: "long",
+          timeStyle: "medium",
+        }),
+      },
+    ]
+    : [];
+
+  return (
+    <Sheet open={transaction !== null} onOpenChange={(open) => !open && onClose()}>
+      <SheetContent>
+        <SheetHeader>
+          <SheetTitle>Détail de la transaction</SheetTitle>
+          <SheetDescription>
+            Toutes les informations enregistrées pour cette opération de wallet.
+          </SheetDescription>
+        </SheetHeader>
+        <div className="px-4 pb-4 space-y-1">
+          {rows.map(({ label, value, mono }) => (
+            <div
+              key={label}
+              className="flex items-start justify-between gap-4 py-2.5 border-b border-border last:border-0"
+            >
+              <span className="text-xs text-muted-foreground shrink-0">{label}</span>
+              <span
+                className={`text-sm text-foreground text-right break-all ${mono ? "font-mono text-xs" : "font-medium"
+                  }`}
+              >
+                {value}
+              </span>
+            </div>
+          ))}
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
+}
+
 // ─── Composant principal ───────────────────────────────────────────────────────
 
 export default function WalletConfigPage() {
@@ -54,6 +139,7 @@ export default function WalletConfigPage() {
   // Tant que l'utilisateur n'a rien choisi explicitement, on retombe sur le premier
   // membre de la liste (dérivé au rendu, pas de setState dans un effet).
   const effectiveMemberId = selectedMemberId ?? members?.[0]?.memberId ?? null;
+  const [selectedTx, setSelectedTx] = useState<WalletTransaction | null>(null);
 
   const {
     data: wallet,
@@ -67,6 +153,15 @@ export default function WalletConfigPage() {
     error: txError,
     refetch: refetchTx,
   } = useMemberWalletTransactions(effectiveMemberId, 0, 20);
+  const {
+    data: points,
+    isLoading: pointsLoading,
+    refetch: refetchPoints,
+  } = useMemberPoints(effectiveMemberId);
+  const { data: tierPolicy } = useTierPolicy();
+  const tierProgress = points
+    ? computeTierProgress(points.lifetimeEarned, tierPolicy?.thresholds)
+    : null;
 
   const policy = wallet
     ? {
@@ -87,7 +182,7 @@ export default function WalletConfigPage() {
             Portefeuille & Politique
           </h1>
           <p className="text-muted-foreground text-sm">
-            Solde en temps réel et historique des transactions du wallet.
+            Points, solde, correspondance et historique des transactions du membre.
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -114,6 +209,7 @@ export default function WalletConfigPage() {
             onClick={() => {
               refetchWallet();
               refetchTx();
+              refetchPoints();
             }}
             className="inline-flex items-center gap-2 text-xs font-medium text-muted-foreground hover:text-foreground border border-border px-3 py-2 rounded-lg hover:bg-secondary transition-all"
           >
@@ -136,6 +232,55 @@ export default function WalletConfigPage() {
           </div>
         </div>
       )}
+
+      {/* ── Carte points de fidélité ─────────────────────────────────────────── */}
+      <div className="border border-border bg-card rounded-xl shadow-sm overflow-hidden">
+        <div className="bg-secondary px-5 py-3.5 border-b border-border flex items-center gap-2">
+          <Award className="w-4 h-4 text-primary" />
+          <h3 className="font-semibold text-sm text-foreground">Points de fidélité</h3>
+        </div>
+        <div className="p-5">
+          {pointsLoading ? (
+            <div className="h-12 bg-muted rounded-lg animate-pulse" />
+          ) : points ? (
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div>
+                <p className="text-xs text-muted-foreground">Solde de points</p>
+                <p className="text-2xl font-bold text-foreground font-mono">
+                  {points.availablePoints.toLocaleString("fr-FR")} pts
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Niveau</p>
+                <p className="text-sm font-semibold text-foreground mt-1">
+                  {TIER_LABELS[points.tierLevel]}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground flex items-center gap-1">
+                  <TrendingUp className="w-3 h-3" /> Progression vers le niveau suivant
+                </p>
+                <div className="mt-1.5 h-2 bg-muted rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-primary rounded-full transition-all"
+                    style={{ width: `${tierProgress?.progressPercent ?? 0}%` }}
+                  />
+                </div>
+                <p className="text-[10px] text-muted-foreground mt-1">
+                  {tierProgress && tierProgress.pointsToNext > 0
+                    ? `${tierProgress.pointsToNext.toLocaleString("fr-FR")} pts restants`
+                    : "Niveau maximum atteint"}
+                </p>
+              </div>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">— Aucune donnée de points —</p>
+          )}
+        </div>
+      </div>
+
+      {/* ── Correspondance des points (taux de conversion du tenant) ─────────── */}
+      <PointsConversionCard />
 
       {/* ── Carte solde ──────────────────────────────────────────────────────── */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -246,6 +391,9 @@ export default function WalletConfigPage() {
           <h3 className="font-semibold text-foreground">
             Historique des transactions
           </h3>
+          <span className="text-xs text-muted-foreground font-normal ml-1">
+            (cliquez une ligne pour le détail)
+          </span>
         </div>
 
         {/* Loading */}
@@ -288,7 +436,7 @@ export default function WalletConfigPage() {
                     Type
                   </th>
                   <th className="px-6 py-4 font-semibold tracking-wider">
-                    Description
+                    Source
                   </th>
                   <th className="px-6 py-4 font-semibold tracking-wider text-right">
                     Montant
@@ -304,7 +452,8 @@ export default function WalletConfigPage() {
                   return (
                     <tr
                       key={tx.id}
-                      className={`hover:bg-secondary/50 transition-colors ${index % 2 === 0 ? "bg-background" : "bg-muted/10"
+                      onClick={() => setSelectedTx(tx)}
+                      className={`hover:bg-secondary/50 transition-colors cursor-pointer ${index % 2 === 0 ? "bg-background" : "bg-muted/10"
                         }`}
                     >
                       <td className="px-6 py-4 text-xs text-muted-foreground font-mono whitespace-nowrap">
@@ -318,8 +467,8 @@ export default function WalletConfigPage() {
                           {tx.type}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-sm text-muted-foreground">
-                        {tx.description ?? "—"}
+                      <td className="px-6 py-4 text-xs text-muted-foreground font-mono">
+                        {tx.source}
                       </td>
                       <td
                         className={`px-6 py-4 font-mono font-semibold text-right text-sm ${isCredit ? "text-green-600" : "text-foreground"
@@ -358,6 +507,12 @@ export default function WalletConfigPage() {
           </span>
         </div>
       )}
+
+      <TransactionDetailSheet
+        transaction={selectedTx}
+        currencyCode={wallet?.currencyCode ?? ""}
+        onClose={() => setSelectedTx(null)}
+      />
     </div>
   );
 }

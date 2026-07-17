@@ -6,4 +6,6 @@ import reactor.core.publisher.Mono;
 
 public interface WalletPolicyRepository {
     Mono<WalletPolicy> findByTenant(TenantId tenantId);
+
+    Mono<WalletPolicy> save(TenantId tenantId, WalletPolicy policy);
 }

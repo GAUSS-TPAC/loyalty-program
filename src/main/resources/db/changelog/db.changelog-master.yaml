@@ -45,3 +45,5 @@ databaseChangeLog:
       file: db/changelog/022-fix-wallet-policies-entity-schema-mismatch.sql
   - include:
       file: db/changelog/023-create-integration-applications.sql
+  - include:
+      file: db/changelog/024-add-api-key-owner-id.sql

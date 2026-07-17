@@ -1,6 +1,9 @@
 package com.yowyob.loyalty.domain.subscription;
 
+import com.yowyob.loyalty.domain.loyalty.model.points.PointsAccount;
+import com.yowyob.loyalty.domain.loyalty.port.out.PointsAccountRepository;
 import com.yowyob.loyalty.domain.shared.model.TenantId;
+import com.yowyob.loyalty.domain.shared.model.UserId;
 import com.yowyob.loyalty.domain.subscription.exception.*;
 import com.yowyob.loyalty.domain.subscription.model.*;
 import com.yowyob.loyalty.domain.subscription.port.out.InvoiceRepository;
@@ -8,6 +11,8 @@ import com.yowyob.loyalty.domain.subscription.port.out.SubscriptionPlanRepositor
 import com.yowyob.loyalty.domain.subscription.port.out.TenantSubscriptionRepository;
 import com.yowyob.loyalty.domain.subscription.service.SubscriptionDomainService;
 import com.yowyob.loyalty.domain.tenant.port.out.TenantDirectoryPort;
+
+import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import reactor.core.publisher.Flux;
@@ -72,8 +77,15 @@ class SubscriptionDomainServiceTest {
             public Flux<InvoiceRecord> findAll() { return Flux.fromIterable(invoices); }
         };
         TenantDirectoryPort tenantDirectoryPort = t -> Mono.empty();
+        PointsAccountRepository pointsAccountRepository = new PointsAccountRepository() {
+            public PointsAccount save(PointsAccount a) { return a; }
+            public Optional<PointsAccount> findById(UUID id) { return Optional.empty(); }
+            public Optional<PointsAccount> findByMemberId(TenantId t, UserId m) { return Optional.empty(); }
+            public Mono<Long> sumLifetimeEarnedByTenant(TenantId t) { return Mono.just(0L); }
+        };
 
-        service = new SubscriptionDomainService(planRepository, subscriptionRepository, invoiceRepository, tenantDirectoryPort);
+        service = new SubscriptionDomainService(planRepository, subscriptionRepository, invoiceRepository,
+                tenantDirectoryPort, pointsAccountRepository);
         plan = SubscriptionPlan.create("PRO", "Pro", "desc", new BigDecimal("10"), new BigDecimal("100"), "XAF",
                 new PlanFeatures(50, 1000, 100000, true, true, true, true));
         plans.put(plan.id(), plan);

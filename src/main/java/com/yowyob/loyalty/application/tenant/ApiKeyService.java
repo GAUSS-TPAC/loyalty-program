@@ -26,16 +26,20 @@ public class ApiKeyService {
 
     public record CreatedKey(ApiKey record, String rawKey) {}
 
-    public Mono<CreatedKey> create(TenantId tenantId, String name, ApiKeyMode mode) {
-        return create(tenantId, name, mode, "lk");
+    public Mono<CreatedKey> create(TenantId tenantId, String name, ApiKeyMode mode, UUID ownerId) {
+        return create(tenantId, name, mode, ownerId, "lk");
     }
 
     public Mono<CreatedKey> create(TenantId tenantId, String name, ApiKeyMode mode, String prefixBase) {
+        return create(tenantId, name, mode, null, prefixBase);
+    }
+
+    public Mono<CreatedKey> create(TenantId tenantId, String name, ApiKeyMode mode, UUID ownerId, String prefixBase) {
         ApiKeyMode effectiveMode = mode != null ? mode : ApiKeyMode.LIVE;
         String raw = generateRawKey(effectiveMode, prefixBase);
         String prefix = raw.substring(0, Math.min(raw.length(), 12));
         String hash = sha256(raw);
-        ApiKey key = ApiKey.create(tenantId, name, hash, prefix, effectiveMode);
+        ApiKey key = ApiKey.create(tenantId, name, hash, prefix, effectiveMode, ownerId);
         return repository.save(key).map(saved -> new CreatedKey(saved, raw));
     }
 
@@ -43,9 +47,13 @@ public class ApiKeyService {
         return repository.findByTenantId(tenantId);
     }
 
-    public Mono<Void> revoke(TenantId tenantId, UUID keyId) {
+    public Flux<ApiKey> listForOwner(TenantId tenantId, UUID ownerId) {
+        return repository.findByTenantIdAndOwnerId(tenantId, ownerId);
+    }
+
+    public Mono<Void> revoke(TenantId tenantId, UUID keyId, UUID callerId, boolean isAdmin) {
         return repository.findByTenantId(tenantId)
-                .filter(k -> k.id().equals(keyId))
+                .filter(k -> k.id().equals(keyId) && (isAdmin || (callerId != null && callerId.equals(k.ownerId()))))
                 .next()
                 .flatMap(k -> repository.save(k.revoke()))
                 .then();

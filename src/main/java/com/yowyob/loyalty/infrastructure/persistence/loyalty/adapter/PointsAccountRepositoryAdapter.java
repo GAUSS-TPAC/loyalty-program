@@ -47,4 +47,9 @@ public class PointsAccountRepositoryAdapter implements PointsAccountRepository {
                 .map(mapper::toDomain)
                 .blockOptional();
     }
+
+    @Override
+    public reactor.core.publisher.Mono<Long> sumLifetimeEarnedByTenant(TenantId tenantId) {
+        return repository.sumLifetimeEarnedByTenantId(tenantId.value());
+    }
 }
