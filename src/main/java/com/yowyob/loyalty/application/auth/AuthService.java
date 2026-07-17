@@ -37,9 +37,19 @@ public class AuthService {
     /**
      * @param organizationId organisation KernelCore explicitement choisie par l'appelant
      *                        (optionnelle si l'acteur n'a accès qu'à une seule organisation)
+     * @return soit un {@link LoginOutcome} authentifié, soit un défi MFA : KernelCore a envoyé
+     *         un code par email et le client doit le confirmer via {@link #confirmMfa}.
      */
-    public Mono<AuthResult> login(String email, String password, String organizationId) {
+    public Mono<LoginOutcome> login(String email, String password, String organizationId) {
         return kernelCoreAuthAdapter.login(kernelCoreProperties.getTenantId(), email, password)
+                .map(result -> result.mfaRequired()
+                        ? LoginOutcome.mfaRequired(result.mfaToken(), result.mfaChannel())
+                        : LoginOutcome.authenticated(resolveOrganization(result, organizationId)));
+    }
+
+    /** Deuxième étape du login MFA : confirme le code OTP reçu par email. */
+    public Mono<AuthResult> confirmMfa(String mfaToken, String code, String organizationId) {
+        return kernelCoreAuthAdapter.confirmMfaLogin(kernelCoreProperties.getTenantId(), mfaToken, code)
                 .map(result -> resolveOrganization(result, organizationId));
     }
 
@@ -76,6 +86,21 @@ public class AuthService {
     public record AuthResult(String token, String organizationId, String organizationCode, String organizationName) {
         static AuthResult from(String token, KernelOrganizationSummaryDto org) {
             return new AuthResult(token, org.getOrganizationId(), org.getOrganizationCode(), org.getDisplayName());
+        }
+    }
+
+    /** Issue d'un login : authentifié directement, ou défi MFA à confirmer (code envoyé par email). */
+    public record LoginOutcome(AuthResult result, String mfaToken, String mfaChannel) {
+        static LoginOutcome authenticated(AuthResult result) {
+            return new LoginOutcome(result, null, null);
+        }
+
+        static LoginOutcome mfaRequired(String mfaToken, String mfaChannel) {
+            return new LoginOutcome(null, mfaToken, mfaChannel);
+        }
+
+        public boolean isMfaRequired() {
+            return result == null;
         }
     }
 }

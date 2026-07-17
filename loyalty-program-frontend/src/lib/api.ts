@@ -640,11 +640,25 @@ export interface LoginResponse {
     organizationId: string;
     organizationCode: string;
     organizationName: string;
+    /** true si le compte a le MFA actif : un code a été envoyé par email, à confirmer via confirmMfa. */
+    mfaRequired?: boolean;
+    mfaToken?: string;
+    mfaChannel?: string;
+}
+
+export interface ConfirmMfaRequest {
+    mfaToken: string;
+    code: string;
+    organizationId?: string;
 }
 
 export const authApi = {
-    /** POST /api/v1/auth/login — Connexion admin par email/mot de passe (KernelCore) */
+    /** POST /api/v1/auth/login — Connexion admin par identifiant/mot de passe (KernelCore).
+     *  Peut retourner mfaRequired=true + mfaToken au lieu du token. */
     login: (data: LoginRequest) => post<LoginResponse>("/api/v1/auth/login", data),
+
+    /** POST /api/v1/auth/login/mfa — Deuxième étape : confirme le code OTP reçu par email */
+    confirmMfa: (data: ConfirmMfaRequest) => post<LoginResponse>("/api/v1/auth/login/mfa", data),
 };
 
 // ─── API Clés API (auto-service tenant — JWT ou clé API) ─────────────────────

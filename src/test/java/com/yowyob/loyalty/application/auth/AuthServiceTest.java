@@ -48,13 +48,14 @@ public class AuthServiceTest {
     void autoSelectsTheOnlyAccessibleOrganization() {
         KernelOrganizationSummaryDto onlyOrg = org("org-1", "LOYALTY-PROGRAM");
         when(kernelCoreAuthAdapter.login(Mockito.anyString(), Mockito.eq("admin@x.com"), Mockito.eq("pw")))
-                .thenReturn(Mono.just(new KernelLoginResultDto("jwt-token", List.of(onlyOrg))));
+                .thenReturn(Mono.just(KernelLoginResultDto.authenticated("jwt-token", List.of(onlyOrg))));
 
         StepVerifier.create(authService.login("admin@x.com", "pw", null))
-                .assertNext(result -> {
-                    assertEquals("jwt-token", result.token());
-                    assertEquals("org-1", result.organizationId());
-                    assertEquals("LOYALTY-PROGRAM", result.organizationCode());
+                .assertNext(outcome -> {
+                    assertEquals(false, outcome.isMfaRequired());
+                    assertEquals("jwt-token", outcome.result().token());
+                    assertEquals("org-1", outcome.result().organizationId());
+                    assertEquals("LOYALTY-PROGRAM", outcome.result().organizationCode());
                 })
                 .verifyComplete();
     }
@@ -64,10 +65,10 @@ public class AuthServiceTest {
         KernelOrganizationSummaryDto orgA = org("org-a", "ALPHA");
         KernelOrganizationSummaryDto orgB = org("org-b", "BETA");
         when(kernelCoreAuthAdapter.login(Mockito.anyString(), Mockito.anyString(), Mockito.anyString()))
-                .thenReturn(Mono.just(new KernelLoginResultDto("jwt-token", List.of(orgA, orgB))));
+                .thenReturn(Mono.just(KernelLoginResultDto.authenticated("jwt-token", List.of(orgA, orgB))));
 
         StepVerifier.create(authService.login("admin@x.com", "pw", "org-b"))
-                .assertNext(result -> assertEquals("org-b", result.organizationId()))
+                .assertNext(outcome -> assertEquals("org-b", outcome.result().organizationId()))
                 .verifyComplete();
     }
 
@@ -75,7 +76,7 @@ public class AuthServiceTest {
     void rejectsExplicitOrganizationNotAccessibleToActor() {
         KernelOrganizationSummaryDto orgA = org("org-a", "ALPHA");
         when(kernelCoreAuthAdapter.login(Mockito.anyString(), Mockito.anyString(), Mockito.anyString()))
-                .thenReturn(Mono.just(new KernelLoginResultDto("jwt-token", List.of(orgA))));
+                .thenReturn(Mono.just(KernelLoginResultDto.authenticated("jwt-token", List.of(orgA))));
 
         StepVerifier.create(authService.login("admin@x.com", "pw", "org-not-mine"))
                 .expectError(OrganizationNotAccessibleException.class)
@@ -87,7 +88,7 @@ public class AuthServiceTest {
         KernelOrganizationSummaryDto orgA = org("org-a", "ALPHA");
         KernelOrganizationSummaryDto orgB = org("org-b", "BETA");
         when(kernelCoreAuthAdapter.login(Mockito.anyString(), Mockito.anyString(), Mockito.anyString()))
-                .thenReturn(Mono.just(new KernelLoginResultDto("jwt-token", List.of(orgA, orgB))));
+                .thenReturn(Mono.just(KernelLoginResultDto.authenticated("jwt-token", List.of(orgA, orgB))));
 
         StepVerifier.create(authService.login("admin@x.com", "pw", null))
                 .expectError(OrganizationSelectionRequiredException.class)
@@ -97,10 +98,38 @@ public class AuthServiceTest {
     @Test
     void rejectsActorWithNoAccessibleOrganization() {
         when(kernelCoreAuthAdapter.login(Mockito.anyString(), Mockito.anyString(), Mockito.anyString()))
-                .thenReturn(Mono.just(new KernelLoginResultDto("jwt-token", List.of())));
+                .thenReturn(Mono.just(KernelLoginResultDto.authenticated("jwt-token", List.of())));
 
         StepVerifier.create(authService.login("admin@x.com", "pw", null))
                 .expectError(OrganizationNotAccessibleException.class)
                 .verify();
+    }
+
+    @Test
+    void surfacesMfaChallengeWithoutResolvingOrganization() {
+        when(kernelCoreAuthAdapter.login(Mockito.anyString(), Mockito.anyString(), Mockito.anyString()))
+                .thenReturn(Mono.just(KernelLoginResultDto.mfaChallenge("mfa-token-123", "EMAIL")));
+
+        StepVerifier.create(authService.login("admin@x.com", "pw", null))
+                .assertNext(outcome -> {
+                    assertEquals(true, outcome.isMfaRequired());
+                    assertEquals("mfa-token-123", outcome.mfaToken());
+                    assertEquals("EMAIL", outcome.mfaChannel());
+                })
+                .verifyComplete();
+    }
+
+    @Test
+    void confirmMfaResolvesOrganizationLikeADirectLogin() {
+        KernelOrganizationSummaryDto onlyOrg = org("org-1", "LOYALTY-PROGRAM");
+        when(kernelCoreAuthAdapter.confirmMfaLogin(Mockito.anyString(), Mockito.eq("mfa-token-123"), Mockito.eq("482913")))
+                .thenReturn(Mono.just(KernelLoginResultDto.authenticated("jwt-token", List.of(onlyOrg))));
+
+        StepVerifier.create(authService.confirmMfa("mfa-token-123", "482913", null))
+                .assertNext(result -> {
+                    assertEquals("jwt-token", result.token());
+                    assertEquals("org-1", result.organizationId());
+                })
+                .verifyComplete();
     }
 }

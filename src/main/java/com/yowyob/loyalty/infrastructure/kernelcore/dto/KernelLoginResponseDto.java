@@ -23,10 +23,33 @@ public class KernelLoginResponseDto {
     private String jwt;
     private List<KernelOrganizationSummaryDto> organizations;
 
+    // Défi MFA/OTP (réponse 202 de /api/auth/login quand le compte a le MFA actif :
+    // pas de jeton, un code est envoyé par email et doit être confirmé via
+    // POST /api/auth/login/mfa/confirm {mfaToken, code}). Le jeton de défi arrive
+    // selon la version sous "challengeToken" (OtpChallengeResponse), "mfaToken" ou
+    // "sessionToken" (LoginResponse) — on tolère les trois.
+    private String challengeToken;
+    private String mfaToken;
+    private String sessionToken;
+    private String deliveryMode;
+    private String mfaChannel;
+    private Integer expiresInSeconds;
+
     public String resolveAccessToken() {
         if (accessToken != null && !accessToken.isBlank()) return accessToken;
         if (token != null && !token.isBlank()) return token;
         return jwt;
+    }
+
+    public String resolveMfaToken() {
+        if (mfaToken != null && !mfaToken.isBlank()) return mfaToken;
+        if (challengeToken != null && !challengeToken.isBlank()) return challengeToken;
+        return sessionToken;
+    }
+
+    public String resolveMfaChannel() {
+        if (mfaChannel != null && !mfaChannel.isBlank()) return mfaChannel;
+        return deliveryMode;
     }
 
     public String getAccessToken() { return accessToken; }
@@ -37,4 +60,16 @@ public class KernelLoginResponseDto {
     public void setJwt(String jwt) { this.jwt = jwt; }
     public List<KernelOrganizationSummaryDto> getOrganizations() { return organizations; }
     public void setOrganizations(List<KernelOrganizationSummaryDto> organizations) { this.organizations = organizations; }
+    public String getChallengeToken() { return challengeToken; }
+    public void setChallengeToken(String challengeToken) { this.challengeToken = challengeToken; }
+    public String getMfaToken() { return mfaToken; }
+    public void setMfaToken(String mfaToken) { this.mfaToken = mfaToken; }
+    public String getSessionToken() { return sessionToken; }
+    public void setSessionToken(String sessionToken) { this.sessionToken = sessionToken; }
+    public String getDeliveryMode() { return deliveryMode; }
+    public void setDeliveryMode(String deliveryMode) { this.deliveryMode = deliveryMode; }
+    public String getMfaChannel() { return mfaChannel; }
+    public void setMfaChannel(String mfaChannel) { this.mfaChannel = mfaChannel; }
+    public Integer getExpiresInSeconds() { return expiresInSeconds; }
+    public void setExpiresInSeconds(Integer expiresInSeconds) { this.expiresInSeconds = expiresInSeconds; }
 }
