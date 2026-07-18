@@ -6,7 +6,6 @@ import com.yowyob.loyalty.infrastructure.kernelcore.adapter.KernelCoreTenantAdap
 import com.yowyob.loyalty.infrastructure.kernelcore.config.KernelCoreProperties;
 import com.yowyob.loyalty.infrastructure.kernelcore.dto.KernelDiscoveredContextDto;
 import com.yowyob.loyalty.infrastructure.kernelcore.dto.KernelLoginResultDto;
-import com.yowyob.loyalty.infrastructure.kernelcore.dto.KernelOrganizationDto;
 import com.yowyob.loyalty.infrastructure.kernelcore.dto.KernelOrganizationSummaryDto;
 import com.yowyob.loyalty.shared.exception.OrganizationNotAccessibleException;
 import com.yowyob.loyalty.shared.exception.OrganizationSelectionRequiredException;
@@ -28,6 +27,9 @@ import java.util.stream.Collectors;
  * KernelCore, donc l'organisation cible doit être résolue explicitement à la connexion
  * et propagée par le client (header X-Organization-Id) sur les appels suivants — voir
  * TenantResolutionFilter et ApiKeyResolutionFilter.
+ *
+ * Quand le compte a le MFA actif, auth-core ne renvoie pas de jeton au login : un code
+ * OTP part par email et doit être confirmé via {@link #confirmMfa} (deux étapes).
  */
 @Service
 public class AuthService {
@@ -48,19 +50,38 @@ public class AuthService {
     /**
      * @param organizationId organisation KernelCore explicitement choisie par l'appelant
      *                        (optionnelle si l'acteur n'a accès qu'à une seule organisation)
+     * @return soit un {@link LoginOutcome} authentifié, soit un défi MFA : KernelCore a envoyé
+     *         un code par email et le client doit le confirmer via {@link #confirmMfa}.
      */
-    public Mono<AuthResult> login(String email, String password, String organizationId) {
+    public Mono<LoginOutcome> login(String email, String password, String organizationId) {
         return resolveTenantId(email, password, organizationId)
                 .flatMap(tenantId -> kernelCoreAuthAdapter.login(tenantId, email, password))
                 .flatMap(result -> {
-                    // L'inscription publique (sign-up) ne crée qu'un compte, jamais d'organisation :
-                    // premier login sans organisation ni choix explicite -> on en provisionne une.
-                    boolean hasNoChoice = (organizationId == null || organizationId.isBlank());
-                    if (result.organizations().isEmpty() && hasNoChoice) {
-                        return provisionDefaultOrganization(result.accessToken(), email);
+                    if (result.mfaRequired()) {
+                        return Mono.just(LoginOutcome.mfaRequired(result.mfaToken(), result.mfaChannel()));
                     }
-                    return Mono.just(resolveOrganization(result, organizationId));
+                    return toAuthenticatedOutcome(result, organizationId, email);
                 });
+    }
+
+    /** Deuxième étape du login MFA : confirme le code OTP reçu par email. */
+    public Mono<AuthResult> confirmMfa(String mfaToken, String code, String organizationId) {
+        return kernelCoreAuthAdapter.confirmMfaLogin(kernelCoreProperties.getTenantId(), mfaToken, code)
+                .flatMap(result -> toAuthenticatedOutcome(result, organizationId, null))
+                .map(LoginOutcome::result);
+    }
+
+    /**
+     * L'inscription publique (sign-up) ne crée qu'un compte, jamais d'organisation :
+     * premier login sans organisation ni choix explicite -> on en provisionne une.
+     */
+    private Mono<LoginOutcome> toAuthenticatedOutcome(KernelLoginResultDto result, String organizationId, String email) {
+        boolean hasNoChoice = (organizationId == null || organizationId.isBlank());
+        if (result.organizations().isEmpty() && hasNoChoice) {
+            return provisionDefaultOrganization(result.accessToken(), email)
+                    .map(LoginOutcome::authenticated);
+        }
+        return Mono.just(LoginOutcome.authenticated(resolveOrganization(result, organizationId)));
     }
 
     /**
@@ -72,7 +93,8 @@ public class AuthService {
                 .flatMap(actor -> {
                     String suffix = UUID.randomUUID().toString().substring(0, 8).toUpperCase();
                     String code = "ORG-" + suffix;
-                    String name = actor.getName() != null && !actor.getName().isBlank() ? actor.getName() : email;
+                    String fallback = email != null && !email.isBlank() ? email : code;
+                    String name = actor.getName() != null && !actor.getName().isBlank() ? actor.getName() : fallback;
                     return kernelCoreTenantAdapter.createOrganization(accessToken, actor.getId(), code, name, name);
                 })
                 .map(org -> new AuthResult(accessToken, org.getId().toString(), org.getCode(), org.resolveName()));
@@ -154,6 +176,21 @@ public class AuthService {
     public record AuthResult(String token, String organizationId, String organizationCode, String organizationName) {
         static AuthResult from(String token, KernelOrganizationSummaryDto org) {
             return new AuthResult(token, org.getOrganizationId(), org.getOrganizationCode(), org.getDisplayName());
+        }
+    }
+
+    /** Issue d'un login : authentifié directement, ou défi MFA à confirmer (code envoyé par email). */
+    public record LoginOutcome(AuthResult result, String mfaToken, String mfaChannel) {
+        static LoginOutcome authenticated(AuthResult result) {
+            return new LoginOutcome(result, null, null);
+        }
+
+        static LoginOutcome mfaRequired(String mfaToken, String mfaChannel) {
+            return new LoginOutcome(null, mfaToken, mfaChannel);
+        }
+
+        public boolean isMfaRequired() {
+            return result == null;
         }
     }
 

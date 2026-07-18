@@ -11,8 +11,8 @@
     "loginTitle": "Connexion à votre compte",
     "passwordLabel": "Mot de passe",
     "passwordPlaceholder": "••••••••",
-    "emailLabel": "Adresse email",
-    "emailPlaceholder": "jean.dupont@example.com",
+    "emailLabel": "Identifiant ou email",
+    "emailPlaceholder": "jean.dupont@example.com ou nom d'utilisateur",
     "credentialsTab": "Email / Mot de passe",
     "apiKeyTab": "Clé API",
     "apiKeyTitle": "Accès développeur",
@@ -20,7 +20,14 @@
     "apiKeyLabel": "Clé API",
     "unlockPortal": "Déverrouiller le portail",
     "organizationLabel": "Organisation",
-    "organizationHelp": "Votre compte a accès à plusieurs organisations. Choisissez celle à administrer puis validez à nouveau."
+    "organizationHelp": "Votre compte a accès à plusieurs organisations. Choisissez celle à administrer puis validez à nouveau.",
+    "mfaTitle": "Vérification en deux étapes",
+    "mfaDescription": "Un code de vérification vous a été envoyé par email. Saisissez-le pour continuer.",
+    "mfaCodeLabel": "Code de vérification",
+    "mfaCodePlaceholder": "123456",
+    "mfaConfirm": "Valider le code",
+    "mfaVerifying": "Vérification...",
+    "mfaBack": "Retour à la connexion"
   },
   "Navigation": {
     "overview": "Vue d'ensemble",

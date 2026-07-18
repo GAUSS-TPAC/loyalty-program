@@ -1,5 +1,6 @@
 package com.yowyob.loyalty.api.auth;
 
+import com.yowyob.loyalty.api.auth.dto.ConfirmMfaRequest;
 import com.yowyob.loyalty.api.auth.dto.LoginRequest;
 import com.yowyob.loyalty.api.auth.dto.LoginResponse;
 import com.yowyob.loyalty.api.auth.dto.RegisterRequest;
@@ -28,9 +29,21 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    @Operation(summary = "Connexion admin", description = "Authentifie un administrateur par email/mot de passe via KernelCore et retourne un JWT ainsi que l'organisation active (à renvoyer via X-Organization-Id).")
+    @Operation(summary = "Connexion admin", description = "Authentifie un administrateur par email/mot de passe via KernelCore. "
+            + "Si le compte a le MFA actif, retourne mfaRequired=true + mfaToken (code envoyé par email, "
+            + "à confirmer via /login/mfa) ; sinon retourne directement le JWT et l'organisation active "
+            + "(à renvoyer via X-Organization-Id).")
     public Mono<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
-        return authService.login(request.email(), request.password(), request.organizationId()).map(LoginResponse::new);
+        return authService.login(request.email(), request.password(), request.organizationId())
+                .map(LoginResponse::from);
+    }
+
+    @PostMapping("/login/mfa")
+    @Operation(summary = "Confirmation MFA", description = "Deuxième étape du login : confirme le code reçu par email "
+            + "avec le mfaToken renvoyé par /login, et retourne le JWT ainsi que l'organisation active.")
+    public Mono<LoginResponse> confirmMfa(@Valid @RequestBody ConfirmMfaRequest request) {
+        return authService.confirmMfa(request.mfaToken(), request.code(), request.organizationId())
+                .map(LoginResponse::new);
     }
 
     @PostMapping("/register")
